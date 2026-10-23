@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>试题转换台 Online · AI 出题与 Excel 导出</title>
+<style>
+  :root{
+    --ink:#1c2b2d;
+    --paper:#f6f3ea;
+    --paper-2:#efe9d8;
+    --line:#d9d0b8;
+    --brass:#8a6d3b;
+    --brass-deep:#6b5228;
+    --pine:#2f5148;
+    --pine-deep:#1f3730;
+    --clay:#b0522d;
+    --ok:#2f6b4f;
+    --warn:#a5471f;
+    --mono: 'Consolas','Menlo','SFMono-Regular',monospace;
+    --serif: 'Songti SC','STSong','SimSun','Noto Serif SC',serif;
+    --ui: -apple-system,'PingFang SC','Microsoft YaHei','Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #fbf8ee 0%, transparent 60%),
+      var(--paper);
+    color:var(--ink);
+    font-family:var(--ui);
+    line-height:1.55;
+    min-height:100vh;
+  }
+  .wrap{
+    max-width:1080px;
+    margin:0 auto;
+    padding:40px 24px 100px;
+  }
+  header.top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:20px;
+    border-bottom:3px double var(--brass);
+    padding-bottom:18px;
+    margin-bottom:8px;
+    flex-wrap:wrap;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+  }
+  .brand .mark{
+    font-family:var(--serif);
+    font-size:34px;
+    font-weight:700;
+    color:var(--pine-deep);
+    letter-spacing:2px;
+  }
+  .brand .sub{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--brass-deep);
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    border:1px solid var(--brass);
+    padding:3px 8px;
+    border-radius:3px;
+    background:rgba(138,109,59,0.08);
+  }
+  .offline-badge{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ok);
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .offline-badge .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--ok);
+    box-shadow:0 0 0 3px rgba(47,107,79,0.15);
+  }
+
+  /* ---------- 内置浏览器 / 下载受限 提示横幅 ---------- */
+  #inappBanner{
+    display:none;
+    background:#fdf1e2;
+    border:1px solid #e6c48f;
+    border-radius:10px;
+    padding:16px 18px;
+    margin-bottom:22px;
+    font-size:13.5px;
+    color:#6b4a1f;
+    line-height:1.7;
+  }
+  #inappBanner.show{ display:block; }
+  #inappBanner .banner-title{
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:6px;
+    font-size:14.5px;
+  }
+  #inappBanner .banner-title .ico{ font-size:17px; }
+  #inappBanner .banner-steps{
+    margin:8px 0 0;
+    padding-left:20px;
+  }
+  #inappBanner .banner-steps li{ margin-bottom:3px; }
+  #inappBanner .banner-dismiss{
+    background:transparent;
+    border:1px solid #e6c48f;
+    color:#6b4a1f;
+    font-size:12px;
+    padding:6px 12px;
+    margin-top:10px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  #inappBanner .banner-dismiss:hover{ background:#f7e3c4; }
+  #inappBanner code{
+    background:#f7e3c4;
+    padding:1px 6px;
+    border-radius:4px;
+    font-family:var(--mono);
+    font-size:12px;
+  }
+
+  #downloadFallback{
+    display:none;
+    margin-top:14px;
+    padding:14px 16px;
+    background:var(--paper-2);
+    border:1px solid var(--line);
+    border-radius:8px;
+  }
+  #downloadFallback.show{ display:block; }
+  #downloadFallback .fallback-title{
+    font-size:13px;
+    font-weight:700;
+    color:var(--warn);
+    margin-bottom:8px;
+  }
+  #downloadFallback .fallback-links{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  #downloadFallback .fallback-links a{
+    font-size:13px;
+    color:var(--pine);
+    text-decoration:underline;
+    word-break:break-all;
+  }
+  .lede{
+    font-size:14.5px;
+    color:#4b5a53;
+    max-width:74ch;
+    margin:16px 0 32px;
+  }
+  .lede b{color:var(--pine-deep);}
+
+  section.panel{
+    background:#fffdf6;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:26px 28px;
+    margin-bottom:22px;
+    box-shadow:0 1px 0 rgba(0,0,0,0.02);
+  }
+  section.panel > h2{
+    font-family:var(--serif);
+    font-size:19px;
+    margin:0 0 4px;
+    color:var(--pine-deep);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  section.panel > h2 .step-no{
+    font-family:var(--mono);
+    font-size:12px;
+    color:#fff;
+    background:var(--pine);
+    width:22px;height:22px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    flex:none;
+  }
+  section.panel > .desc{
+    font-size:13px;
+    color:#6d7871;
+    margin:0 0 18px;
+  }
+
+  /* Dropzone */
+  #dropzone{
+    border:2px dashed var(--line);
+    border-radius:10px;
+    padding:36px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    background:var(--paper-2);
+  }
+  #dropzone.drag{
+    border-color:var(--pine);
+    background:#eaf1ec;
+  }
+  #dropzone .icon{
+    font-size:30px;
+    margin-bottom:8px;
+    color:var(--brass);
+  }
+  #dropzone .main-txt{
+    font-size:15px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  #dropzone .sub-txt{
+    font-size:12.5px;
+    color:#8b9089;
+    margin-top:4px;
+  }
+  #fileInput{display:none;}
+
+  #fileList{
+    margin-top:16px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .file-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--paper-2);
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:10px 14px;
+    font-size:13.5px;
+  }
+  .file-row .fname{
+    flex:1;
+    font-weight:600;
+    color:var(--pine-deep);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .file-row .fstat{
+    font-family:var(--mono);
+    font-size:11.5px;
+    padding:2px 8px;
+    border-radius:4px;
+    white-space:nowrap;
+  }
+  .fstat.ok{background:#e4f1e9;color:var(--ok);}
+  .fstat.warn{background:#f7e9df;color:var(--warn);}
+  .fstat.pending{background:#eee;color:#888;}
+  .file-row .fremove{
+    cursor:pointer;
+    color:#b8b0a0;
+    font-size:16px;
+    line-height:1;
+    padding:2px 4px;
+  }
+  .file-row .fremove:hover{color:var(--clay);}
+
+  /* config grid */
+  .cfg-toggle{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    color:var(--brass-deep);
+    cursor:pointer;
+    user-select:none;
+    margin-bottom:14px;
+  }
+  .cfg-toggle .chev{
+    display:inline-block;
+    transition:transform .15s;
+    font-size:11px;
+  }
+  .cfg-toggle.open .chev{transform:rotate(90deg);}
+  #cfgBody{display:none;}
+  #cfgBody.open{display:block;}
+
+  .cfg-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px 24px;
+  }
+  @media (max-width:720px){ .cfg-grid{grid-template-columns:1fr;} }
+
+  .cfg-field label{
+    display:block;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--pine-deep);
+    margin-bottom:5px;
+  }
+  .cfg-field .hint{
+    font-size:11px;
+    color:#95998f;
+    margin-bottom:6px;
+  }
+  .cfg-field input[type=text], .cfg-field textarea, .cfg-field select{
+    width:100%;
+    font-family:var(--mono);
+    font-size:12.5px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:#fffef9;
+    color:var(--ink);
+  }
+  .cfg-field textarea{resize:vertical; min-height:44px;}
+  .cfg-field input[type=text]:focus, .cfg-field textarea:focus, .cfg-field select:focus{
+    outline:none;
+    border-color:var(--pine);
+    box-shadow:0 0 0 3px rgba(47,81,72,0.1);
+  }
+  .cfg-actions{
+    display:flex;
+    gap:10px;
+    margin-top:18px;
+    flex-wrap:wrap;
+  }
+
+  /* buttons */
+  button{
+    font-family:var(--ui);
+    cursor:pointer;
+    border:none;
+    border-radius:7px;
+    font-size:13.5px;
+    font-weight:600;
+    padding:10px 18px;
+    transition:transform .08s, box-shadow .12s, background .15s;
+  }
+  button:active{transform:translateY(1px);}
+  .btn-primary{
+    background:var(--pine);
+    color:#fdfbf3;
+    box-shadow:0 2px 0 var(--pine-deep);
+  }
+  .btn-primary:hover{background:var(--pine-deep);}
+  .btn-primary:disabled{
+    background:#c7cdc7;
+    box-shadow:none;
+    cursor:not-allowed;
+  }
+  .btn-ghost{
+    background:transparent;
+    color:var(--brass-deep);
+    border:1px solid var(--line);
+  }
+  .btn-ghost:hover{background:var(--paper-2);}
+  .btn-small{
+    padding:6px 12px;
+    font-size:12px;
+  }
+
+  /* preview */
+  #previewArea{display:none;}
+  .preview-summary{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  }
+  .count-chip{
+    font-family:var(--mono);
+    font-size:12px;
+    padding:6px 12px;
+    border-radius:20px;
+    background:var(--paper-2);
+    border:1px solid var(--line);
+    color:var(--pine-deep);
+  }
+  .count-chip b{font-size:14px;}
+  .count-chip.zero{color:#b3ab98;}
+
+  .qtype-block{
+    margin-bottom:18px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .qtype-head{
+    background:var(--paper-2);
+    padding:10px 16px;
+    font-size:13px;
+    font-weight:700;
+    color:var(--pine-deep);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .qtype-body{
+    max-height:280px;
+    overflow-y:auto;
+  }
+  .qrow{
+    padding:10px 16px;
+    border-top:1px solid #eee6d2;
+    font-size:12.5px;
+  }
+  .qrow:first-child{border-top:none;}
+  .qrow .qstem{
+    color:var(--ink);
+    margin-bottom:4px;
+  }
+  .qrow .qmeta{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    color:#8b9089;
+    font-family:var(--mono);
+    font-size:11px;
+  }
+  .qrow .qmeta .ans{color:var(--ok); font-weight:700;}
+  .qrow.flag{background:#fdf6ee;}
+  .qrow.flag .qmeta .ans{color:var(--warn);}
+
+  #logArea{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:#7a8078;
+    background:#faf8f0;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    max-height:160px;
+    overflow-y:auto;
+    display:none;
+    white-space:pre-wrap;
+  }
+
+  footer{
+    text-align:center;
+    font-size:11.5px;
+    color:#a19a86;
+    margin-top:40px;
+    font-family:var(--mono);
+  }
+
+  .seal{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:11px;
+    color:var(--brass-deep);
+  }
+
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+
+  /* ---------- 输入方式 Tab 切换 ---------- */
+  .input-tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:18px;
+  }
+  .input-tab-btn{
+    flex:1;
+    background:var(--paper-2);
+    border:1px solid var(--line);
+    color:#7a8078;
+    padding:11px 14px;
+    border-radius:8px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .input-tab-btn.active{
+    background:var(--pine);
+    color:#fdfbf3;
+    border-color:var(--pine-deep);
+  }
+  .input-pane{display:none;}
+  .input-pane.active{display:block;}
+
+  #pasteArea{
+    width:100%;
+    min-height:220px;
+    font-family:var(--ui);
+    font-size:14px;
+    line-height:1.7;
+    padding:16px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#fffef9;
+    color:var(--ink);
+    resize:vertical;
+  }
+  #pasteArea:focus{
+    outline:none;
+    border-color:var(--pine);
+    box-shadow:0 0 0 3px rgba(47,81,72,0.1);
+  }
+  #pasteArea::placeholder{color:#b3ab98;}
+
+  .paste-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:10px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .paste-name-field{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12.5px;
+    color:var(--brass-deep);
+    flex:1;
+    min-width:200px;
+  }
+  .paste-name-field input{
+    flex:1;
+    font-family:var(--ui);
+    font-size:13px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:#fffef9;
+    color:var(--ink);
+  }
+  .paste-name-field input:focus{
+    outline:none;
+    border-color:var(--pine);
+  }
+
+  /* ---------- 移动端适配 ---------- */
+  @media (max-width:640px){
+    .wrap{ padding:20px 14px 80px; }
+    header.top{ flex-direction:column; align-items:flex-start; gap:8px; padding-bottom:14px; }
+    .brand .mark{ font-size:26px; letter-spacing:1px; }
+    .offline-badge{ font-size:11px; }
+    .lede{ font-size:13.5px; margin:12px 0 22px; }
+
+    section.panel{ padding:18px 16px; margin-bottom:16px; border-radius:9px; }
+    section.panel > h2{ font-size:17px; }
+
+    #dropzone{ padding:26px 14px; }
+    #dropzone .main-txt{ font-size:14px; }
+    #dropzone .icon{ font-size:26px; }
+
+    .input-tab-btn{ padding:12px 10px; font-size:13px; }
+
+    .cfg-grid{ grid-template-columns:1fr; gap:14px; }
+
+    button{ font-size:14px; padding:12px 18px; }
+    .btn-primary{ width:100%; }
+    #exportBtn{ width:100%; }
+    .cfg-actions{ flex-direction:column; }
+    .cfg-actions button{ width:100%; }
+
+    .file-row{ flex-wrap:wrap; padding:10px 12px; }
+    .file-row .fname{ white-space:normal; word-break:break-all; flex-basis:100%; }
+    .file-row .fstat{ order:2; }
+    .file-row .fremove{ order:3; margin-left:auto; }
+
+    .preview-summary{ gap:8px; }
+    .count-chip{ font-size:11px; padding:5px 10px; }
+
+    .qtype-body{ max-height:220px; }
+    .qrow{ font-size:12px; padding:9px 12px; }
+    .qrow .qmeta{ gap:8px; }
+
+    #pasteArea{ min-height:180px; font-size:15px; padding:14px; }
+    .paste-toolbar{ flex-direction:column; align-items:stretch; }
+    .paste-name-field{ min-width:0; }
+  }
+
+  @media (max-width:400px){
+    .brand .mark{ font-size:22px; }
+    .brand{ flex-direction:column; align-items:flex-start; gap:6px; }
+  }
+
+  /* ---------- AI 出题 ---------- */
+  .input-tab-btn{ padding:11px 8px; }
+  #paneAi .cfg-field input[type=text], #paneAi .cfg-field input[type=password], #paneAi .cfg-field textarea{
+    width:100%;
+    font-family:var(--ui);
+    font-size:14px;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fffef9;
+    color:var(--ink);
+  }
+  #aiKey, #aiBase, #aiModel{ font-family:var(--mono) !important; font-size:12.5px !important; }
+  #paneAi .cfg-field input:focus, #paneAi .cfg-field textarea:focus{
+    outline:none; border-color:var(--pine); box-shadow:0 0 0 3px rgba(47,81,72,0.1);
+  }
+  #aiCfgBody{display:none;}
+  #aiCfgBody.open{display:block;}
+  .ai-counts{ display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:13.5px; color:var(--pine-deep); }
+  .ai-counts input{
+    width:62px; padding:7px 8px; border:1px solid var(--line); border-radius:6px;
+    font-size:14px; text-align:center; background:#fffef9; font-family:var(--mono);
+  }
+  .ai-remember{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:#6d7871; margin-top:12px; }
+  .ai-status{
+    margin-top:14px; padding:12px 14px; border-radius:8px; font-size:13px; line-height:1.7;
+    background:var(--paper-2); border:1px solid var(--line); color:#4b5a53; white-space:pre-wrap; word-break:break-word;
+  }
+  .ai-status.ok{ background:#e9f3ed; border-color:#bcd8c8; color:var(--ok); }
+  .ai-status.warn{ background:#fdf1e2; border-color:#e6c48f; color:#6b4a1f; }
+  .ai-status.bad{ background:#fbece4; border-color:#e8bfa8; color:var(--warn); }
+  .ai-tip{ font-size:12.5px; color:#6d7871; margin-bottom:14px; }
+
+  /* ---------- 在线编辑 ---------- */
+  .paper-title-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .paper-title{ font-weight:700; color:#2f5148; font-size:14px; }
+  .qtype-head button{ padding:4px 10px; }
+  .qtype-body{ max-height:none; overflow:visible; }
+  .qrow.qedit{ padding:12px 14px; }
+  .qline{ display:flex; gap:8px; align-items:flex-start; }
+  .qno{ font-family:var(--mono); font-size:12px; color:var(--brass-deep); padding-top:9px; min-width:24px; }
+  .qstem-edit{
+    flex:1; min-width:0; font-family:var(--ui); font-size:14px; line-height:1.6;
+    padding:7px 10px; border:1px solid var(--line); border-radius:7px; background:#fffef9; color:var(--ink); resize:vertical;
+  }
+  .qstem-edit:focus, .opt-text:focus, .tf-select:focus{ outline:none; border-color:var(--pine); box-shadow:0 0 0 3px rgba(47,81,72,0.1); }
+  .qside{ display:flex; flex-direction:column; gap:6px; align-items:stretch; flex:none; }
+  .qdel:hover{ color:var(--clay); border-color:var(--clay); }
+  .qopts{ margin:8px 0 0 32px; display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+  .opt-row{ display:flex; align-items:center; gap:8px; width:100%; }
+  .opt-row input[type=radio], .opt-row input[type=checkbox]{ width:18px; height:18px; flex:none; accent-color:var(--pine); }
+  .opt-letter{ font-family:var(--mono); font-weight:700; color:var(--pine-deep); width:16px; flex:none; }
+  .opt-text{
+    flex:1; min-width:0; font-family:var(--ui); font-size:13.5px;
+    padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:#fffef9; color:var(--ink);
+  }
+  .tf-select{ font-family:var(--ui); font-size:13.5px; padding:7px 10px; border:1px solid var(--line); border-radius:6px; background:#fffef9; }
+  .qissue{ margin:6px 0 0 32px; font-size:12px; color:var(--warn); }
+  .qissue:empty{ display:none; }
+  .verify-badge{
+    font-size:11px; font-weight:700; text-align:center; cursor:pointer; user-select:none;
+    padding:3px 8px; border-radius:12px; background:#fdebc8; color:#8a5a00; border:1px solid #e6c48f;
+  }
+  .verify-badge.done{ background:#e4f1e9; color:var(--ok); border-color:#bcd8c8; }
+
+  /* ---------- 导出前体检 ---------- */
+  .issue-box{ margin:0 0 16px; padding:12px 16px; border-radius:8px; font-size:13px; line-height:1.7; }
+  .issue-box.good{ background:#e9f3ed; border:1px solid #bcd8c8; color:var(--ok); }
+  .issue-box.bad{ background:#fbece4; border:1px solid #e8bfa8; color:var(--warn); }
+  .issue-box ul{ margin:6px 0 0; padding-left:20px; }
+  .issue-box .verify-note{ margin-top:8px; color:#8a5a00; }
+  .issue-box .score-note{ margin-top:6px; color:#6d7871; font-size:12px; }
+  @media (max-width:560px){
+    .qline{ flex-wrap:wrap; }
+    .qside{ flex-direction:row; width:100%; justify-content:flex-end; }
+    .qopts, .qissue{ margin-left:0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <span class="mark">试题转换台</span>
+      <span class="sub">v2.0 · Online Edition</span>
+    </div>
+    <div class="offline-badge"><span class="dot"></span>解析与导出在本机完成 · 仅 AI 出题时联网</div>
+  </header>
+
+  <div id="inappBanner">
+    <div class="banner-title"><span class="ico">⚠</span><span id="inappBannerTitle">检测到当前可能在聊天软件内置的预览窗口中打开</span></div>
+    <div id="inappBannerBody">
+      这类内置窗口通常会拦截文件下载。请按以下步骤切换到真正的浏览器后再操作：
+      <ol class="banner-steps">
+        <li>点击屏幕右上角的"<b>···</b>"或"<b>⋯</b>"菜单</li>
+        <li>选择"<b>在浏览器中打开</b>"（不同 App 措辞可能略有差异，如"复制链接后用浏览器打开"）</li>
+        <li>在弹出的系统浏览器（如 Safari / Chrome / 手机自带浏览器）里重新完成解析和下载</li>
+      </ol>
+    </div>
+    <button class="banner-dismiss" id="inappBannerDismiss">我知道了，先不提示</button>
+  </div>
+
+  <p class="lede">
+    输入一个考试主题，<b>AI 一键出题</b>（默认 10 单选 + 5 多选 + 5 判断），在页面上逐题核对、直接修改，
+    再一键导出符合<b>考试系统导入模板</b>格式的 Excel。也可以上传 .docx 或粘贴文字，自动识别后导出。
+    解析和导出都在你自己的浏览器里完成；只有"AI 出题"这一步会把主题（和你贴的参考资料）发给 DeepSeek。
+  </p>
+
+  <!-- STEP 1: input -->
+  <section class="panel">
+    <h2><span class="step-no">1</span>出题 / 放入试题内容</h2>
+    <p class="desc">三种方式任选：让 AI 按主题出题；上传 .docx 文件；或直接粘贴试题文字（手机上更方便）。</p>
+
+    <div class="input-tabs">
+      <button class="input-tab-btn active" id="tabBtnAi">🤖 AI 出题</button>
+      <button class="input-tab-btn" id="tabBtnFile">📄 上传 .docx</button>
+      <button class="input-tab-btn" id="tabBtnPaste">✎ 粘贴文字</button>
+    </div>
+
+    <div class="input-pane active" id="paneAi">
+      <div class="cfg-field">
+        <label>考试主题</label>
+        <div class="hint">例如：胸腔闭式引流护理团体标准基础知识</div>
+        <input type="text" id="aiTopic" placeholder="输入考试主题" autocomplete="off">
+      </div>
+
+      <div class="cfg-field" style="margin-top:14px;">
+        <label>参考资料（可选）</label>
+        <div class="hint">如果有团标 / 教材原文，粘贴在这里，AI 会严格依据它出题；不填则凭通用护理知识出题，涉及具体数值的题会标"需核实"</div>
+        <textarea id="aiRef" rows="5" placeholder="可留空"></textarea>
+      </div>
+
+      <div class="ai-counts">
+        <label>单选 <input type="number" id="aiNSingle" value="10" min="0" max="30" inputmode="numeric"> 道</label>
+        <label>多选 <input type="number" id="aiNMulti" value="5" min="0" max="30" inputmode="numeric"> 道</label>
+        <label>判断 <input type="number" id="aiNTf" value="5" min="0" max="30" inputmode="numeric"> 道</label>
+      </div>
+
+      <div class="cfg-toggle" id="aiCfgToggle" style="margin-top:14px;"><span class="chev">▶</span>AI 接口设置（API Key 在这里填）</div>
+      <div id="aiCfgBody">
+        <div class="cfg-grid">
+          <div class="cfg-field" style="grid-column:1/-1;">
+            <label>DeepSeek API Key</label>
+            <div class="hint">只保存在这台设备的浏览器里，不会写进代码或上传到仓库。请勿把 Key 发给别人或贴到聊天里。</div>
+            <input type="password" id="aiKey" placeholder="sk-…" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="cfg-field">
+            <label>接口地址</label>
+            <div class="hint">一般不用改</div>
+            <input type="text" id="aiBase" value="https://api.deepseek.com">
+          </div>
+          <div class="cfg-field">
+            <label>模型</label>
+            <div class="hint">一般不用改</div>
+            <input type="text" id="aiModel" value="deepseek-chat">
+          </div>
+        </div>
+        <label class="ai-remember"><input type="checkbox" id="aiRemember" checked> 在本设备记住 Key 和设置</label>
+        <div class="cfg-actions">
+          <button class="btn-ghost btn-small" id="aiTestBtn">测试连接</button>
+          <button class="btn-ghost btn-small" id="aiClearBtn">清除已保存的 Key</button>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;">
+        <button class="btn-primary" id="aiGenBtn">✨ 生成试题</button>
+      </div>
+      <div id="aiStatus" class="ai-status" style="display:none;"></div>
+    </div>
+
+    <div class="input-pane" id="paneFile">
+      <div id="dropzone">
+        <div class="icon">⬆</div>
+        <div class="main-txt">点击选择文件，或拖拽 .docx 到此处</div>
+        <div class="sub-txt">仅支持 .docx（Word 2007 及以上格式），可一次选多个</div>
+      </div>
+      <input type="file" id="fileInput" accept=".docx" multiple>
+
+      <div id="fileList"></div>
+    </div>
+
+    <div class="input-pane" id="panePaste">
+      <textarea id="pasteArea" placeholder="把整份试题的文字直接粘贴到这里，比如：&#10;&#10;1. 题干内容（）&#10;A. 选项一&#10;B. 选项二&#10;C. 选项三&#10;D. 选项四&#10;&#10;……&#10;&#10;参考答案&#10;1.B  2.A  3.C"></textarea>
+      <div class="paste-toolbar">
+        <label class="paste-name-field">
+          试卷名称
+          <input type="text" id="pasteNameInput" placeholder="留空则自动使用“粘贴试题”作为文件名">
+        </label>
+        <button class="btn-ghost btn-small" id="pasteAddBtn">加入待解析列表</button>
+      </div>
+      <div id="pasteList"></div>
+    </div>
+  </section>
+
+  <!-- STEP 2: parsing rules -->
+  <section class="panel">
+    <h2><span class="step-no">2</span>解析规则</h2>
+    <p class="desc">工具会先按默认规则智能识别题目；如果识别效果不理想，可在下方展开调整规则，无需修改代码。</p>
+
+    <div class="cfg-toggle" id="cfgToggle"><span class="chev">▶</span>展开 / 收起 解析规则配置</div>
+
+    <div id="cfgBody">
+      <div class="cfg-grid">
+
+        <div class="cfg-field">
+          <label>单项选择题 分节标题关键词</label>
+          <div class="hint">用逗号分隔多个可能的写法，命中任一即视为单选题分节开始</div>
+          <input type="text" id="cfg_single_kw" value="单项选择题,单选题,单选">
+        </div>
+
+        <div class="cfg-field">
+          <label>多项选择题 分节标题关键词</label>
+          <div class="hint">用逗号分隔</div>
+          <input type="text" id="cfg_multi_kw" value="多项选择题,多选题,多选">
+        </div>
+
+        <div class="cfg-field">
+          <label>判断题 分节标题关键词</label>
+          <div class="hint">用逗号分隔</div>
+          <input type="text" id="cfg_tf_kw" value="判断题,是非题">
+        </div>
+
+        <div class="cfg-field">
+          <label>参考答案区块 关键词</label>
+          <div class="hint">用于定位文末的统一答案区（如"参考答案"）</div>
+          <input type="text" id="cfg_ans_kw" value="参考答案,答案">
+        </div>
+
+        <div class="cfg-field">
+          <label>题号识别正则</label>
+          <div class="hint">匹配"1. 题干…"这类开头，捕获组1需为题号</div>
+          <input type="text" id="cfg_qnum_re" value="^\s*(\d{1,3})[\.、．\)\s]\s*(.+)$">
+        </div>
+
+        <div class="cfg-field">
+          <label>选项识别正则</label>
+          <div class="hint">匹配"A. 选项内容"这类开头，捕获组1为选项字母，组2为内容</div>
+          <input type="text" id="cfg_opt_re" value="^\s*([A-H])[\.、．\)\s]\s*(.+)$">
+        </div>
+
+        <div class="cfg-field">
+          <label>判断题"正确"关键词</label>
+          <div class="hint">用逗号分隔，命中即判为"正确"，否则默认按"错误"处理</div>
+          <input type="text" id="cfg_tf_true" value="正确,对,√,是,T,true">
+        </div>
+
+        <div class="cfg-field">
+          <label>判断题"错误"关键词</label>
+          <div class="hint">用逗号分隔</div>
+          <input type="text" id="cfg_tf_false" value="错误,错,×,否,F,false">
+        </div>
+
+        <div class="cfg-field">
+          <label>默认单选题每题分值</label>
+          <input type="text" id="cfg_score_single" value="5">
+        </div>
+
+        <div class="cfg-field">
+          <label>默认多选题每题分值</label>
+          <input type="text" id="cfg_score_multi" value="5">
+        </div>
+
+        <div class="cfg-field">
+          <label>默认判断题每题分值</label>
+          <input type="text" id="cfg_score_tf" value="5">
+        </div>
+
+        <div class="cfg-field">
+          <label>试卷总分</label>
+          <input type="text" id="cfg_score_total" value="100">
+        </div>
+
+      </div>
+
+      <div class="cfg-actions">
+        <button class="btn-ghost btn-small" id="cfgResetBtn">恢复默认规则</button>
+        <button class="btn-ghost btn-small" id="cfgSaveBtn">保存为本地默认（下次打开自动生效）</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3: parse trigger -->
+  <section class="panel">
+    <h2><span class="step-no">3</span>核对与修改</h2>
+    <p class="desc">AI 生成的题会直接出现在下方；上传或粘贴的内容需要先点"解析试题"。每道题都可以直接修改、删除或新增，核对无误后再导出。</p>
+    <button class="btn-primary" id="parseBtn" disabled>解析试题</button>
+    <div id="logArea"></div>
+
+    <div id="previewArea"></div>
+  </section>
+
+  <!-- STEP 4: export -->
+  <section class="panel" id="exportPanel" style="display:none;">
+    <h2><span class="step-no">4</span>导出 Excel</h2>
+    <p class="desc">按考试系统导入模板格式生成 .xlsx 文件，文件名与试卷名称对应。</p>
+    <div id="issueSummary" class="issue-box" style="display:none;"></div>
+    <button class="btn-primary" id="exportBtn">生成并下载全部 Excel 文件</button>
+    <div style="margin-top:10px;">
+      <span class="cfg-toggle" id="fallbackToggle" style="margin-bottom:0;">
+        <span class="chev">▶</span>点击后没反应？手动显示下载链接
+      </span>
+    </div>
+
+    <div id="downloadFallback">
+      <div class="fallback-title">⚠ 点击后没有触发下载？当前环境可能拦截了自动下载</div>
+      <div class="desc" style="margin-bottom:8px;">
+        请先按页面顶部的提示切换到系统浏览器（如 Safari / Chrome）重新打开本页面并解析导出；
+        如果暂时无法切换，可以点击下方链接手动下载：
+      </div>
+      <div class="fallback-links" id="downloadFallbackLinks"></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="seal">◆ 解析与导出完全在本机完成；仅"AI 出题"会联网，Key 只存在你的浏览器里 ◆<br>v2.0.0 · 2026-10-23</div>
+  </footer>
+
+</div>
+
+<!--
+================================================================
+ 第一部分：JSZip 第三方库（压缩打包版，MIT 协议）
+ 这是别人写好的开源 zip 读写库，用来在浏览器里解析 .docx 和
+ 生成 .xlsx（它们本质都是 zip 压缩包）。这部分本来就是官方发布
+ 的"minified 压缩版"，不是我们自己写的代码，展开后也只是一堆
+ 变量名被简化的库代码，没有可读性、也不需要看。
+ 原始项目地址：https://github.com/Stuk/jszip
+================================================================
+-->
+<script id="jszip-lib">__JSZIP__</script>
+
+<!--
+================================================================
+ 第二部分：Excel 导入模板数据（Base64 编码）
+ 这是"考试系统导入模板"这个 Excel 文件本身，被转成了一长串
+ 文字（Base64 编码）塞进网页里，这样工具才能在没有网络的情况下
+ 现场"复制"出这个模板来填充数据。这一长串文字本质就是一个
+ 二进制 xlsx 文件，不是代码，看不出内容也属正常。
+================================================================
+-->
+<script id="template-data">__TEMPLATE_DATA__</script>
+
+<!--
+================================================================
+ 第三部分：核心业务逻辑（这才是真正的工具代码，值得看的部分）
+ docx 解析、题目识别、Excel 生成、下载兜底提示……
+ 都在这一段里，有正常的缩进和中文注释。
+================================================================
+-->
+<script id="app-logic">__APP_JS__</script>
+
+</body>
+</html>
