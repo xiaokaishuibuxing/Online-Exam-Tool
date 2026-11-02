@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>试题转换台 Online · AI 出题与 Excel 导出</title>
+<title>试题转换台 Online</title>
 <style>
   :root{
     --ink:#1c2b2d;
@@ -620,6 +620,7 @@
   .ai-status.ok{ background:#e9f3ed; border-color:#bcd8c8; color:var(--ok); }
   .ai-status.warn{ background:#fdf1e2; border-color:#e6c48f; color:#6b4a1f; }
   .ai-status.bad{ background:#fbece4; border-color:#e8bfa8; color:var(--warn); }
+  .ai-builtin{ margin-top:14px; padding:10px 14px; border-radius:8px; background:#e9f3ed; border:1px solid #bcd8c8; color:var(--ok); font-size:13px; line-height:1.7; }
   .ai-tip{ font-size:12.5px; color:#6d7871; margin-bottom:14px; }
 
   /* ---------- 在线编辑 ---------- */
@@ -754,8 +755,13 @@
         </div>
       </div>
 
-      <div style="margin-top:18px;">
+      <div id="aiBuiltinNote" class="ai-builtin" style="display:none;">
+        ✓ 已启用<b>内置 AI</b>：出题由你的 Claude 账号完成，<b>不需要填写 API Key</b>。第一次点"生成试题"时会弹出授权提示，选允许即可。
+      </div>
+
+      <div style="margin-top:18px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <button class="btn-primary" id="aiGenBtn">✨ 生成试题</button>
+        <button class="btn-ghost" id="aiStopBtn" style="display:none;">停止</button>
       </div>
       <div id="aiStatus" class="ai-status" style="display:none;"></div>
     </div>
@@ -1001,7 +1007,8 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
   const downloadFallback = document.getElementById('downloadFallback');
   const downloadFallbackLinks = document.getElementById('downloadFallbackLinks');
 
-  const inAppLabel = detectInAppBrowser();
+  // 在 claude.ai 里以"作品"形式打开时（window.claude 存在），页面本来就是被嵌进去的，不需要"请换浏览器"的提示
+  const inAppLabel = window.claude ? null : detectInAppBrowser();
   if(inAppLabel){
     inappBannerTitle.textContent = `检测到当前可能在${inAppLabel}内置窗口中打开`;
     inappBanner.classList.add('show');
@@ -2028,6 +2035,31 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
     aiStatus.style.display = msg ? 'block' : 'none';
   }
 
+  // ---------- 内置 AI（在 claude.ai 里打开时，直接用你的 Claude，不需要 API Key） ----------
+  // 页面在 claude.ai 里打开时，会自动检测到"内置 AI"，出题走你自己的 Claude 账号，
+  // 此时"AI 接口设置"整块隐藏。在 GitHub Pages 等普通网页里打开则没有内置 AI，
+  // 回到"填 DeepSeek API Key"的方式。
+  let aiMode = 'deepseek';          // 'claude' | 'deepseek'
+  let claudeSample = null;
+  const aiBuiltinNote = document.getElementById('aiBuiltinNote');
+
+  function applyAiMode(){
+    const builtin = aiMode === 'claude';
+    aiBuiltinNote.style.display = builtin ? 'block' : 'none';
+    aiCfgToggle.style.display = builtin ? 'none' : '';
+    aiCfgBody.style.display = builtin ? 'none' : '';
+  }
+  (async function detectBuiltinAi(){
+    if(!window.claude || typeof window.claude.use !== 'function') return;
+    aiCfgToggle.style.display = 'none';      // 检测期间先藏起来，避免闪一下 Key 输入框
+    aiCfgBody.style.display = 'none';
+    try{
+      const s = await window.claude.use('sample');
+      if(s){ claudeSample = s; aiMode = 'claude'; }
+    }catch(e){ /* 当作没有内置 AI */ }
+    applyAiMode();
+  })();
+
   function aiSettings(){
     return {
       key: aiKey.value.trim(),
@@ -2038,6 +2070,21 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
 
   // 把各种失败原因翻译成能看懂的话
   function explainAiError(e, status, bodyText){
+    if(e && e.code && !status){
+      const m = {
+        cancelled: '已停止。',
+        not_granted: '你没有允许这个页面使用 Claude。刷新页面后重新点"生成试题"，在弹出的提示里选允许。',
+        session_expired: '登录已过期，请刷新页面并重新登录 Claude。',
+        sampling_disabled: '你的账号或所在组织没有开通 Claude 调用。',
+        rate_limited: '调用太频繁，或已达到你账号的使用额度。过几分钟再试。',
+        refused: 'Claude 拒绝了这次请求，请换一个主题表述再试。',
+        empty_completion: 'Claude 没有返回内容，请重试。',
+        invalid_json: 'Claude 返回的内容格式不对，请重试一次。',
+        prompt_too_large: '参考资料太长了，请缩短后再试。',
+        upstream_error: '服务暂时出问题，请稍后重试。',
+      };
+      return m[e.code] || ('出题失败（' + e.code + '）：' + (e.message || ''));
+    }
     if(e && e.name === 'AbortError') return '等待超过 2.5 分钟，已取消。可以稍后重试，或把题量调小一点。';
     if(status === 401 || status === 403) return 'API Key 无效或没有权限（' + status + '）。请检查 Key 是否填对、是否被停用。';
     if(status === 402) return '账户余额不足（402）。请到 DeepSeek 开放平台充值后再试。';
@@ -2207,6 +2254,48 @@ ${refBlock}
   }
 
   let aiBusy = false;
+  let aiCtl = null;
+  const aiStopBtn = document.getElementById('aiStopBtn');
+  aiStopBtn.addEventListener('click', () => { if(aiCtl) aiCtl.abort(); });
+
+  // 向 AI 要一整份题的 JSON 文本。两种来源：Claude 内置 / DeepSeek（需 Key）
+  async function requestAiText(prompt, st, signal, onProgress){
+    if(aiMode === 'claude'){
+      const r = await claudeSample(prompt, {
+        modelTier: 'default',
+        cache: false,                       // 每次点"生成"都要得到一套新题，不复用缓存
+        signal,
+        onText: ({ text }) => onProgress(text.length)
+      });
+      if(r.truncated){
+        const err = new Error('truncated'); err.isTruncated = true; throw err;
+      }
+      return r.text;
+    }
+    const res = await fetch(st.base + '/chat/completions', {
+      method:'POST',
+      signal,
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + st.key },
+      body: JSON.stringify({
+        model: st.model,
+        messages: [
+          { role:'system', content:'你是严谨的医院护理培训考试命题专家，只输出 JSON。' },
+          { role:'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 7000,
+        response_format: { type:'json_object' },
+        stream: false
+      })
+    });
+    const bodyText = await res.text();
+    if(!res.ok){
+      const err = new Error('HTTP ' + res.status); err.httpStatus = res.status; err.httpBody = bodyText; throw err;
+    }
+    const data = JSON.parse(bodyText);
+    return data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+  }
+
   aiGenBtn.addEventListener('click', async () => {
     if(aiBusy) return;
     const topic = aiTopic.value.trim();
@@ -2215,7 +2304,7 @@ ${refBlock}
     const nm = Math.max(0, Math.min(30, parseInt(aiNMulti.value, 10) || 0));
     const nt = Math.max(0, Math.min(30, parseInt(aiNTf.value, 10) || 0));
     if(!topic){ setAiStatus('请先填写考试主题。', 'bad'); return; }
-    if(!st.key){
+    if(aiMode !== 'claude' && !st.key){
       setAiStatus('请先展开"AI 接口设置"，填写你的 DeepSeek API Key。', 'bad');
       if(!aiCfgBody.classList.contains('open')) aiCfgToggle.click();
       return;
@@ -2224,39 +2313,26 @@ ${refBlock}
 
     aiBusy = true;
     aiGenBtn.disabled = true;
-    saveAiCfg();
+    aiStopBtn.style.display = 'inline-block';
+    if(aiMode !== 'claude') saveAiCfg();
     const t0 = Date.now();
-    const timer = setInterval(() => {
-      setAiStatus(`正在生成试题…已用 ${Math.round((Date.now() - t0) / 1000)} 秒（通常 30~90 秒）`);
-    }, 1000);
-    setAiStatus('正在生成试题…');
+    let written = 0;
+    const tick = () => {
+      const sec = Math.round((Date.now() - t0) / 1000);
+      setAiStatus(`正在生成试题…已用 ${sec} 秒` + (written ? `，已写 ${written} 字` : '（通常 30~90 秒；首次使用会先弹出授权提示）'));
+    };
+    const timer = setInterval(tick, 1000);
+    tick();
 
+    aiCtl = new AbortController();
+    const to = setTimeout(() => aiCtl.abort(), 240000);
     let status = 0, bodyText = '';
-    const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), 150000);
     try{
-      const res = await fetch(st.base + '/chat/completions', {
-        method:'POST',
-        signal: ctrl.signal,
-        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + st.key },
-        body: JSON.stringify({
-          model: st.model,
-          messages: [
-            { role:'system', content:'你是严谨的医院护理培训考试命题专家，只输出 JSON。' },
-            { role:'user', content: buildAiPrompt(topic, aiRef.value.trim(), ns, nm, nt) }
-          ],
-          temperature: 0.7,
-          max_tokens: 7000,
-          response_format: { type:'json_object' },
-          stream: false
-        })
-      });
-      status = res.status;
-      bodyText = await res.text();
-      if(!res.ok) throw new Error('HTTP ' + status);
-      const data = JSON.parse(bodyText);
-      const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-      const parsed = parseAiJson(content);
+      const content = await requestAiText(
+        buildAiPrompt(topic, aiRef.value.trim(), ns, nm, nt), st, aiCtl.signal, n => { written = n; });
+      let parsed;
+      try{ parsed = parseAiJson(content); }
+      catch(pe){ const err = new Error('parse'); err.isParse = true; throw err; }
       const { questions, warn } = normalizeAi(parsed);
 
       let name = topic;
@@ -2281,12 +2357,19 @@ ${refBlock}
       setAiStatus(msg, warn.length ? 'warn' : 'ok');
       previewArea.scrollIntoView({ behavior:'smooth', block:'start' });
     }catch(e){
-      setAiStatus('✕ ' + explainAiError(e, status, bodyText), 'bad');
+      let text;
+      if(e && e.isParse) text = '返回的内容无法解析成题目，请再点一次"生成试题"；如果反复出现，把题量调小一些。';
+      else if(e && e.isTruncated) text = '内容太长被截断了，请把题量调小一些再试，或分两次出题。';
+      else if(e && e.httpStatus) text = explainAiError(null, e.httpStatus, e.httpBody);
+      else text = explainAiError(e, 0, '');
+      setAiStatus((e && e.code === 'cancelled' ? '' : '✕ ') + text, e && e.code === 'cancelled' ? '' : 'bad');
     }finally{
       clearTimeout(to);
       clearInterval(timer);
       aiBusy = false;
+      aiCtl = null;
       aiGenBtn.disabled = false;
+      aiStopBtn.style.display = 'none';
     }
   });
 
@@ -2502,7 +2585,7 @@ ${refBlock}
         log(`生成 Excel：${item.name}`);
         const blob = await buildXlsxForFile(item, cfg);
         const outName = stripExt(item.name) + '.xlsx';
-        downloadBlob(blob, outName);
+        await downloadBlob(blob, outName);
         fallbackItems.push({ filename: outName, blob });
         successCount++;
         log(`  ✓ 已生成：${outName}`);
@@ -2554,7 +2637,29 @@ ${refBlock}
     }
   });
 
-  function downloadBlob(blob, filename){
+  // 下载：在 claude.ai 里打开时，用平台提供的"下载"能力（会弹出保存确认）；
+  // 其他环境走普通浏览器下载。
+  let downloadsCap = null, downloadsChecked = false;
+  async function getDownloadsCap(){
+    if(downloadsChecked) return downloadsCap;
+    downloadsChecked = true;
+    try{
+      if(window.claude && typeof window.claude.use === 'function') downloadsCap = await window.claude.use('downloads');
+    }catch(e){ downloadsCap = null; }
+    return downloadsCap;
+  }
+
+  async function downloadBlob(blob, filename){
+    const cap = await getDownloadsCap();
+    if(cap){
+      try{
+        await cap.save({ filename, data: await blob.arrayBuffer() });
+        return;
+      }catch(e){
+        if(e && e.code === 'declined'){ log(`（已取消保存：${filename}）`); return; }
+        log(`（平台保存未完成，改用普通下载：${filename}）`);
+      }
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

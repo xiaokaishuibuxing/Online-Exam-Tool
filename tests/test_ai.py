@@ -100,4 +100,4 @@ async def main():
         print('ERRORS', errs)
         await pg.screenshot(path='/home/claude/work/tests/shot_ai.png', full_page=True)
         await b.close()
-asyncio.run(main())
+if __name__=="__main__": asyncio.run(main())

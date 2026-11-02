@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>试题转换台 Online · AI 出题与 Excel 导出</title>
+<title>试题转换台 Online</title>
 <style>
   :root{
     --ink:#1c2b2d;
@@ -620,6 +620,7 @@
   .ai-status.ok{ background:#e9f3ed; border-color:#bcd8c8; color:var(--ok); }
   .ai-status.warn{ background:#fdf1e2; border-color:#e6c48f; color:#6b4a1f; }
   .ai-status.bad{ background:#fbece4; border-color:#e8bfa8; color:var(--warn); }
+  .ai-builtin{ margin-top:14px; padding:10px 14px; border-radius:8px; background:#e9f3ed; border:1px solid #bcd8c8; color:var(--ok); font-size:13px; line-height:1.7; }
   .ai-tip{ font-size:12.5px; color:#6d7871; margin-bottom:14px; }
 
   /* ---------- 在线编辑 ---------- */
@@ -754,8 +755,13 @@
         </div>
       </div>
 
-      <div style="margin-top:18px;">
+      <div id="aiBuiltinNote" class="ai-builtin" style="display:none;">
+        ✓ 已启用<b>内置 AI</b>：出题由你的 Claude 账号完成，<b>不需要填写 API Key</b>。第一次点"生成试题"时会弹出授权提示，选允许即可。
+      </div>
+
+      <div style="margin-top:18px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <button class="btn-primary" id="aiGenBtn">✨ 生成试题</button>
+        <button class="btn-ghost" id="aiStopBtn" style="display:none;">停止</button>
       </div>
       <div id="aiStatus" class="ai-status" style="display:none;"></div>
     </div>
