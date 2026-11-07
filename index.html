@@ -589,40 +589,8 @@
     .brand{ flex-direction:column; align-items:flex-start; gap:6px; }
   }
 
-  /* ---------- AI 出题 ---------- */
-  .input-tab-btn{ padding:11px 8px; }
-  #paneAi .cfg-field input[type=text], #paneAi .cfg-field input[type=password], #paneAi .cfg-field textarea{
-    width:100%;
-    font-family:var(--ui);
-    font-size:14px;
-    padding:10px 12px;
-    border:1px solid var(--line);
-    border-radius:8px;
-    background:#fffef9;
-    color:var(--ink);
-  }
-  #aiKey, #aiBase, #aiModel{ font-family:var(--mono) !important; font-size:12.5px !important; }
-  #paneAi .cfg-field input:focus, #paneAi .cfg-field textarea:focus{
-    outline:none; border-color:var(--pine); box-shadow:0 0 0 3px rgba(47,81,72,0.1);
-  }
-  #aiCfgBody{display:none;}
-  #aiCfgBody.open{display:block;}
-  .ai-counts{ display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:13.5px; color:var(--pine-deep); }
-  .ai-counts input{
-    width:62px; padding:7px 8px; border:1px solid var(--line); border-radius:6px;
-    font-size:14px; text-align:center; background:#fffef9; font-family:var(--mono);
-  }
-  .ai-remember{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:#6d7871; margin-top:12px; }
-  .ai-status{
-    margin-top:14px; padding:12px 14px; border-radius:8px; font-size:13px; line-height:1.7;
-    background:var(--paper-2); border:1px solid var(--line); color:#4b5a53; white-space:pre-wrap; word-break:break-word;
-  }
-  .ai-status.ok{ background:#e9f3ed; border-color:#bcd8c8; color:var(--ok); }
-  .ai-status.warn{ background:#fdf1e2; border-color:#e6c48f; color:#6b4a1f; }
-  .ai-status.bad{ background:#fbece4; border-color:#e8bfa8; color:var(--warn); }
-  .ai-builtin{ margin-top:14px; padding:10px 14px; border-radius:8px; background:#e9f3ed; border:1px solid #bcd8c8; color:var(--ok); font-size:13px; line-height:1.7; }
+  
   .ai-tip{ font-size:12.5px; color:#6d7871; margin-bottom:14px; }
-
   /* ---------- 在线编辑 ---------- */
   .paper-title-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
   .paper-title{ font-weight:700; color:#2f5148; font-size:14px; }
@@ -667,6 +635,44 @@
     .qside{ flex-direction:row; width:100%; justify-content:flex-end; }
     .qopts, .qissue{ margin-left:0; }
   }
+
+  /* ---------- 版本号角标 ---------- */
+  .ver-badge{
+    position:fixed;
+    right:max(10px, env(safe-area-inset-right, 0px));
+    bottom:max(10px, env(safe-area-inset-bottom, 0px));
+    z-index:50;
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:var(--mono); font-size:11px; line-height:1;
+    padding:7px 10px;
+    border:1px solid var(--line); border-radius:999px;
+    background:var(--paper); color:var(--pine-deep);
+    cursor:pointer; opacity:.92;
+  }
+  .ver-badge:hover{ opacity:1; border-color:var(--pine); }
+  .ver-new{ background:var(--clay, #b4532a); color:#fff; font-weight:700; padding:2px 6px; border-radius:8px; font-size:10px; letter-spacing:.04em; }
+  .ver-panel{
+    position:fixed;
+    right:max(10px, env(safe-area-inset-right, 0px));
+    bottom:calc(max(10px, env(safe-area-inset-bottom, 0px)) + 40px);
+    z-index:51;
+    width:min(340px, calc(100vw - 20px));
+    max-height:60vh; overflow:auto;
+    background:var(--paper); color:var(--ink);
+    border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 8px 28px rgba(28,43,45,.18);
+    padding:12px 14px; font-size:12.5px; line-height:1.65;
+  }
+  .ver-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; }
+  .ver-close{ border:none; background:none; cursor:pointer; font-size:14px; color:var(--pine-deep); padding:2px 6px; }
+  .ver-panel h4{ margin:10px 0 2px; font-size:12px; color:var(--brass-deep); font-family:var(--mono); }
+  .ver-panel ul{ margin:0; padding-left:18px; }
+
+  /* ---------- 文件格式提示 / 导出确认 ---------- */
+  .file-notice{ margin-top:12px; padding:11px 14px; border-radius:8px; background:#fdf1e2; border:1px solid #e6c48f; color:#6b4a1f; font-size:13px; line-height:1.7; }
+  .file-notice b{ color:#8a3d12; }
+  .file-notice div + div{ margin-top:6px; }
+  .btn-primary.armed{ background:var(--warn); border-color:var(--warn); }
 </style>
 </head>
 <body>
@@ -675,9 +681,9 @@
   <header class="top">
     <div class="brand">
       <span class="mark">试题转换台</span>
-      <span class="sub">v2.0 · Online Edition</span>
+      <span class="sub">v3.0.0 · Offline Edition</span>
     </div>
-    <div class="offline-badge"><span class="dot"></span>解析与导出在本机完成 · 仅 AI 出题时联网</div>
+    <div class="offline-badge"><span class="dot"></span>完全离线运行 · 不联网 · 不上传</div>
   </header>
 
   <div id="inappBanner">
@@ -693,86 +699,35 @@
     <button class="banner-dismiss" id="inappBannerDismiss">我知道了，先不提示</button>
   </div>
 
+
+
   <p class="lede">
-    输入一个考试主题，<b>AI 一键出题</b>（默认 10 单选 + 5 多选 + 5 判断），在页面上逐题核对、直接修改，
-    再一键导出符合<b>考试系统导入模板</b>格式的 Excel。也可以上传 .docx 或粘贴文字，自动识别后导出。
-    解析和导出都在你自己的浏览器里完成；只有"AI 出题"这一步会把主题（和你贴的参考资料）发给 DeepSeek。
+    上传 .docx 或粘贴试题文字，自动识别<b>单选 / 多选 / 判断</b>题，在页面上核对、直接修改，
+    再一键导出符合<b>考试系统导入模板</b>格式的 Excel。识别、修改和导出全部在你自己的浏览器里完成，不联网，不上传。
   </p>
+
 
   <!-- STEP 1: input -->
   <section class="panel">
-    <h2><span class="step-no">1</span>出题 / 放入试题内容</h2>
-    <p class="desc">三种方式任选：让 AI 按主题出题；上传 .docx 文件；或直接粘贴试题文字（手机上更方便）。</p>
+    <h2><span class="step-no">1</span>放入试题内容</h2>
+    <p class="desc">可以上传 .docx 文件，也可以直接把试题文字粘贴进来（手机上更方便），两种方式识别规则完全一致。</p>
 
     <div class="input-tabs">
-      <button class="input-tab-btn active" id="tabBtnAi">🤖 AI 出题</button>
-      <button class="input-tab-btn" id="tabBtnFile">📄 上传 .docx</button>
+      
+      <button class="input-tab-btn active" id="tabBtnFile">📄 上传 .docx</button>
       <button class="input-tab-btn" id="tabBtnPaste">✎ 粘贴文字</button>
     </div>
 
-    <div class="input-pane active" id="paneAi">
-      <div class="cfg-field">
-        <label>考试主题</label>
-        <div class="hint">例如：胸腔闭式引流护理团体标准基础知识</div>
-        <input type="text" id="aiTopic" placeholder="输入考试主题" autocomplete="off">
-      </div>
-
-      <div class="cfg-field" style="margin-top:14px;">
-        <label>参考资料（可选）</label>
-        <div class="hint">如果有团标 / 教材原文，粘贴在这里，AI 会严格依据它出题；不填则凭通用护理知识出题，涉及具体数值的题会标"需核实"</div>
-        <textarea id="aiRef" rows="5" placeholder="可留空"></textarea>
-      </div>
-
-      <div class="ai-counts">
-        <label>单选 <input type="number" id="aiNSingle" value="10" min="0" max="30" inputmode="numeric"> 道</label>
-        <label>多选 <input type="number" id="aiNMulti" value="5" min="0" max="30" inputmode="numeric"> 道</label>
-        <label>判断 <input type="number" id="aiNTf" value="5" min="0" max="30" inputmode="numeric"> 道</label>
-      </div>
-
-      <div class="cfg-toggle" id="aiCfgToggle" style="margin-top:14px;"><span class="chev">▶</span>AI 接口设置（API Key 在这里填）</div>
-      <div id="aiCfgBody">
-        <div class="cfg-grid">
-          <div class="cfg-field" style="grid-column:1/-1;">
-            <label>DeepSeek API Key</label>
-            <div class="hint">只保存在这台设备的浏览器里，不会写进代码或上传到仓库。请勿把 Key 发给别人或贴到聊天里。</div>
-            <input type="password" id="aiKey" placeholder="sk-…" autocomplete="off" spellcheck="false">
-          </div>
-          <div class="cfg-field">
-            <label>接口地址</label>
-            <div class="hint">一般不用改</div>
-            <input type="text" id="aiBase" value="https://api.deepseek.com">
-          </div>
-          <div class="cfg-field">
-            <label>模型</label>
-            <div class="hint">一般不用改</div>
-            <input type="text" id="aiModel" value="deepseek-chat">
-          </div>
-        </div>
-        <label class="ai-remember"><input type="checkbox" id="aiRemember" checked> 在本设备记住 Key 和设置</label>
-        <div class="cfg-actions">
-          <button class="btn-ghost btn-small" id="aiTestBtn">测试连接</button>
-          <button class="btn-ghost btn-small" id="aiClearBtn">清除已保存的 Key</button>
-        </div>
-      </div>
-
-      <div id="aiBuiltinNote" class="ai-builtin" style="display:none;">
-        ✓ 已启用<b>内置 AI</b>：出题由你的 Claude 账号完成，<b>不需要填写 API Key</b>。第一次点"生成试题"时会弹出授权提示，选允许即可。
-      </div>
-
-      <div style="margin-top:18px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <button class="btn-primary" id="aiGenBtn">✨ 生成试题</button>
-        <button class="btn-ghost" id="aiStopBtn" style="display:none;">停止</button>
-      </div>
-      <div id="aiStatus" class="ai-status" style="display:none;"></div>
-    </div>
-
-    <div class="input-pane" id="paneFile">
+    
+    <div class="input-pane active" id="paneFile">
       <div id="dropzone">
         <div class="icon">⬆</div>
         <div class="main-txt">点击选择文件，或拖拽 .docx 到此处</div>
-        <div class="sub-txt">仅支持 .docx（Word 2007 及以上格式），可一次选多个</div>
+        <div class="sub-txt">识别 .docx（Word 2007 及以上格式），可一次选多个。.doc / .wps / .pdf 请先另存为 .docx</div>
       </div>
-      <input type="file" id="fileInput" accept=".docx" multiple>
+      <input type="file" id="fileInput" multiple>
+
+      <div id="fileNotice" class="file-notice" style="display:none;"></div>
 
       <div id="fileList"></div>
     </div>
@@ -865,7 +820,24 @@
 
         <div class="cfg-field">
           <label>试卷总分</label>
+          <div class="hint">导出前检查时，总分（题数 × 每题分值）不等于这个数会提示</div>
           <input type="text" id="cfg_score_total" value="100">
+        </div>
+
+        <div class="cfg-field">
+          <label>标准题数：单选题</label>
+          <div class="hint">导出前检查：识别到的题数不等于它会提示；填 0 表示不检查</div>
+          <input type="text" id="cfg_expect_single" value="10">
+        </div>
+
+        <div class="cfg-field">
+          <label>标准题数：多选题</label>
+          <input type="text" id="cfg_expect_multi" value="5">
+        </div>
+
+        <div class="cfg-field">
+          <label>标准题数：判断题</label>
+          <input type="text" id="cfg_expect_tf" value="5">
         </div>
 
       </div>
@@ -910,7 +882,7 @@
   </section>
 
   <footer>
-    <div class="seal">◆ 解析与导出完全在本机完成；仅"AI 出题"会联网，Key 只存在你的浏览器里 ◆<br>v2.0.0 · 2026-10-23</div>
+    <div class="seal">◆ 本工具不依赖网络、不产生任何外部请求，可长期离线保存于 U 盘中使用 ◆<br>v3.0.0 · 2026-11-07</div>
   </footer>
 
 </div>
@@ -925,6 +897,16 @@
  原始项目地址：https://github.com/Stuk/jszip
 ================================================================
 -->
+
+  <!-- 版本号：固定在右下角，点击展开更新内容 -->
+  <button type="button" id="verBadge" class="ver-badge" aria-expanded="false" aria-controls="verPanel">
+    <span id="verText"></span><span id="verNew" class="ver-new" style="display:none;">NEW</span>
+  </button>
+  <div id="verPanel" class="ver-panel" style="display:none;" role="dialog" aria-label="版本与更新内容">
+    <div class="ver-head"><b id="verPanelTitle"></b><button type="button" id="verClose" class="ver-close" aria-label="关闭">✕</button></div>
+    <div id="verBody"></div>
+  </div>
+
 <script id="jszip-lib">
 /*!
 
@@ -963,13 +945,17 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
 -->
 <script id="app-logic">
 /* ============================================================
-   试题转换台 Online — 核心逻辑
-   解析试题、生成 Excel 全部在浏览器本地完成；
-   只有"AI 出题"这一步会联网调用 DeepSeek 接口。
+   试题转换台 — 核心逻辑
+   解析试题、在线修改、生成 Excel 全部在浏览器本地完成。
+   （在线版额外带"AI 出题"，该部分用 @AI 标记包住，离线版构建时整段删除，
+   所以离线版里没有任何联网代码。）
    ============================================================ */
 
 (function(){
   'use strict';
+
+  // 版本信息（构建时由 src/version.json 注入）
+  const APP_INFO = {"version": "3.0.0", "date": "2026-11-07", "changelog": [{"version": "3.0.0", "date": "2026-11-07", "items": ["页面上可直接修改题干、选项、答案，可删除、可新增题目", "导出前自动检查：选项不足、单选多答案、多选少于 2 个答案、题数不对、总分不是 100；有问题时需再点一次确认才导出", "支持题干里直接写答案：…（B）、【答案】B、答案：ABD", "选到 .doc / .wps / .pdf 等文件时给出明确提示，不再无反应", "修复：参考答案区小标题只写“判断”时，多选答案被判断题答案覆盖", "每题默认 5 分，总分按题数自动计算", "角落显示版本号和更新日期"]}, {"version": "2.0.0", "date": "2026-10-23", "items": ["（在线版）新增 AI 出题，需联网", "新增页面上编辑题目"]}, {"version": "1.0.0", "date": "2026-10", "items": ["上传 .docx / 粘贴文字，识别单选、多选、判断题并导出 Excel"]}]};
 
   // ============================================================
   // 内置浏览器（钉钉/微信/企业微信等）检测
@@ -1046,7 +1032,8 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
   const CFG_IDS = [
     'cfg_single_kw','cfg_multi_kw','cfg_tf_kw','cfg_ans_kw',
     'cfg_qnum_re','cfg_opt_re','cfg_tf_true','cfg_tf_false',
-    'cfg_score_single','cfg_score_multi','cfg_score_tf','cfg_score_total'
+    'cfg_score_single','cfg_score_multi','cfg_score_tf','cfg_score_total',
+    'cfg_expect_single','cfg_expect_multi','cfg_expect_tf'
   ];
   const CFG_DEFAULTS = {};
   CFG_IDS.forEach(id => { CFG_DEFAULTS[id] = document.getElementById(id).value; });
@@ -1071,7 +1058,7 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
   }
 
   // 改了分值，导出前体检里的"总分"要跟着刷新
-  ['cfg_score_single','cfg_score_multi','cfg_score_tf'].forEach(id => {
+  ['cfg_score_single','cfg_score_multi','cfg_score_tf','cfg_score_total','cfg_expect_single','cfg_expect_multi','cfg_expect_tf'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => { updateIssueSummary(); });
   });
 
@@ -1107,7 +1094,7 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
   })();
 
   // ---------- 输入方式 Tab 切换（AI 出题 / 上传 .docx / 粘贴文字） ----------
-  const TAB_PAIRS = [['tabBtnAi','paneAi'], ['tabBtnFile','paneFile'], ['tabBtnPaste','panePaste']];
+  const TAB_PAIRS = [['tabBtnFile','paneFile'], ['tabBtnPaste','panePaste']];
   TAB_PAIRS.forEach(([btnId]) => {
     document.getElementById(btnId).addEventListener('click', () => {
       TAB_PAIRS.forEach(([b2, p2]) => {
@@ -1131,13 +1118,45 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
     fileInput.value = ''; // 允许重复选择同名文件
   });
 
+  // 选到不是 .docx 的文件时，给出明确的转换提示（不要让用户点了没反应）
+  const fileNotice = document.getElementById('fileNotice');
+
+  function explainUnsupported(name){
+    const ext = ((name.match(/\.([A-Za-z0-9]+)$/) || [])[1] || '').toLowerCase();
+    const n = escapeHtml(name);
+    if(ext === 'doc' || ext === 'dot' || ext === 'wps' || ext === 'wpt' || ext === 'rtf' || ext === 'odt'){
+      const kind = (ext === 'wps' || ext === 'wpt') ? 'WPS 格式' : '旧版 / 其他格式的文档';
+      return `<b>「${n}」是${kind}，本工具只能读取 .docx。</b>请用 Word 或 WPS 打开它，点<b>"另存为"</b>，文件类型选 <b>.docx</b>，再重新上传；也可以把文字复制出来，用上面的"粘贴文字"。`;
+    }
+    if(ext === 'pdf'){
+      return `<b>「${n}」是 PDF，本工具不能直接读取。</b>请用 Word 或 WPS 打开这份 PDF 并<b>另存为 .docx</b> 后再上传；或者把文字复制出来，用上面的"粘贴文字"。`;
+    }
+    if(ext === 'txt' || ext === 'md'){
+      return `<b>「${n}」是纯文本文件。</b>请打开它，复制全部文字，用上面的"粘贴文字"。`;
+    }
+    return `<b>「${n}」不是 .docx 文件，无法识别。</b>请另存为 .docx 后再上传，或把文字复制出来用"粘贴文字"。`;
+  }
+
   function handleFiles(fileListObj){
-    const arr = Array.from(fileListObj).filter(f => /\.docx$/i.test(f.name));
-    if(arr.length === 0){
-      log('未检测到 .docx 文件，请确认文件格式');
+    const all = Array.from(fileListObj);
+    const good = all.filter(f => /\.docx$/i.test(f.name));
+    const bad = all.filter(f => !/\.docx$/i.test(f.name));
+
+    // 提示区：每次选择都刷新；全部是 .docx 时清空
+    if(bad.length){
+      fileNotice.innerHTML = bad.map(f => `<div>${explainUnsupported(f.name)}</div>`).join('');
+      fileNotice.style.display = 'block';
+      bad.forEach(f => log(`不支持的文件：${f.name}（请另存为 .docx）`));
+    }else{
+      fileNotice.style.display = 'none';
+      fileNotice.innerHTML = '';
+    }
+
+    if(good.length === 0){
+      if(all.length === 0) log('没有选到文件');
       return;
     }
-    arr.forEach(f => {
+    good.forEach(f => {
       state.files.push({ source:'docx', file:f, name:f.name, status:'pending', paragraphs:null, questions:null, error:null });
     });
     renderFileList();
@@ -1345,6 +1364,22 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
     return items.length >= 2 ? items : null;
   }
 
+  // 单独成行的答案：「答案：B」「【答案】ABD」「正确答案：√」，后面可跟「解析：…」
+  const INLINE_ANS_LINE_RE = /^\s*[【\[（(]?\s*(?:参考|正确|标准)?\s*答\s*案\s*[】\]）)]?\s*[:：]?\s*([A-H](?:\s*[,，、]?\s*[A-H])*|[√×✓✔✗✘]|正确|错误|对|错)\s*[。.；;]?\s*(?:[【\[]?解析[】\]]?.*)?$/;
+  // 解析行：「解析：……」「【解析】……」
+  const EXPLAIN_LINE_RE = /^\s*[【\[]?\s*(?:答案)?解析\s*[】\]]?\s*[:：]?/;
+
+  function normAns(v){
+    let t = String(v || '').replace(/[\s,，、]/g, '');
+    if(t === '✓' || t === '✔') t = '√';
+    if(t === '✗' || t === '✘') t = '×';
+    return t;
+  }
+  function matchInlineAnswerLine(line){
+    const m = String(line || '').match(INLINE_ANS_LINE_RE);
+    return m ? normAns(m[1]) : null;
+  }
+
   function findSectionRanges(paragraphs, cfg){
     const singleKw = splitKw(cfg.cfg_single_kw);
     const multiKw = splitKw(cfg.cfg_multi_kw);
@@ -1367,7 +1402,8 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
       if(headKeywordHit(p, singleKw)) markers.push({index:idx, type:'single'});
       else if(headKeywordHit(p, multiKw)) markers.push({index:idx, type:'multi'});
       else if(headKeywordHit(p, tfKw)) markers.push({index:idx, type:'tf'});
-      else if(ansKw.some(kw => p.trim() === kw || (p.startsWith(kw) && p.length <= kw.length + 6))) markers.push({index:idx, type:'answer'});
+      // 注意：单独成行的「答案：B」是某道题自己的答案，不是答案区的起点
+      else if(!matchInlineAnswerLine(p) && ansKw.some(kw => p.trim() === kw || (p.startsWith(kw) && p.length <= kw.length + 6))) markers.push({index:idx, type:'answer'});
     });
 
     return markers;
@@ -1443,6 +1479,26 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
     return null;
   }
 
+  // 读出试卷自己写的题数：分节标题里的"共10题"、开头概览里的"单选10题、多选5题、判断5题"、"本试卷共20题"
+  function extractDeclared(paragraphs, sections){
+    const d = { single:null, multi:null, tf:null, total:null };
+    const numRe = /共\s*(\d+)\s*[道题个]/;
+    sections.forEach(m => {
+      if(m.type === 'answer') return;
+      const mm = paragraphs[m.index].match(numRe);
+      if(mm) d[m.type] = parseInt(mm[1], 10);
+    });
+    const head = paragraphs.slice(0, 20).join('\n');
+    [['single', /单(?:项)?(?:选择?)?题?\s*[:：]?\s*(\d+)\s*[道题个]/],
+     ['multi',  /多(?:项)?(?:选择?)?题?\s*[:：]?\s*(\d+)\s*[道题个]/],
+     ['tf',     /(?:判断|是非)题?\s*[:：]?\s*(\d+)\s*[道题个]/]].forEach(([k, re]) => {
+      if(d[k] === null){ const mm = head.match(re); if(mm) d[k] = parseInt(mm[1], 10); }
+    });
+    const tm = head.match(/(?:本?试卷|本?卷|全卷|总共|合计|总计)\s*共?\s*(\d+)\s*[道题个]/);
+    if(tm) d.total = parseInt(tm[1], 10);
+    return d;
+  }
+
   function parseDocxQuestions(paragraphs, cfg){
     const qnumRe = buildQuestionNumRe(cfg.cfg_qnum_re);
     const optRe = buildOptionRe(cfg.cfg_opt_re);
@@ -1487,6 +1543,14 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
         continue;
       }
 
+      // 题目后面单独一行的「答案：B」「【答案】ABD」，以及「解析：…」
+      if(current){
+        const ia = matchInlineAnswerLine(line);
+        if(ia){ current.inlineAns = ia; continue; }
+        if(EXPLAIN_LINE_RE.test(line)){ current.skipRest = true; continue; }
+        if(current.skipRest) continue; // 解析的后续段落，不要拼进题干或选项
+      }
+
       // 先检查这一行是不是"多个选项挤在同一行"（如 "A. xxx B. xxx C. xxx D. xxx"）
       const inlineOpts = current ? splitInlineOptions(line, inlineOptScanRe) : null;
       if(inlineOpts && current){
@@ -1513,28 +1577,38 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
     // 只有在完全没有分节标题信息时，才退化为按选项数量/答案形态猜测。
     const result = { single:[], multi:[], tf:[], unclassified:[] };
 
-    // 题干括号里直接写了答案，如"……（ B ）"或"……(ABD)"：抽出答案，并把括号清空
-    function takeInlineAnswer(q){
-      const m = q.stem.match(/[（(]\s*([A-H]{1,8}|[√×]|正确|错误)\s*[）)]/);
-      if(!m) return null;
-      q.stem = q.stem.replace(m[0], '（  ）');
-      return m[1];
+    // 题干括号里直接写了答案，如"……（ B ）"、"……(ABD)"、"……（√）"
+    const BRACKET_ANS_RE = /[（(]\s*([A-H](?:\s*[,，、]?\s*[A-H])*|[√×]|正确|错误|对|错)\s*[）)]/;
+    function peekBracketAnswer(q){
+      const m = q.stem.match(BRACKET_ANS_RE);
+      return m ? normAns(m[1]) : null;
     }
 
+    // 取答案的优先顺序：
+    // 1) 答案区里对应题型的子块（最可靠）  2) 题后单独一行的「答案：B」
+    // 3) 题干括号里的答案                  4) 答案区的"不分题型"兜底
     function lookupAnswer(q){
-      let hit = null;
-      if(!q.sectionType) hit = answerMaps.flat[q.num] || null;
-      else{
+      if(q.sectionType){
         const byType = answerMaps[q.sectionType];
-        if(byType && byType[q.num] !== undefined) hit = byType[q.num];
-        // 子块答案区缺失该题号时，退化用 flat（可能不准，但聊胜于无）
-        else hit = answerMaps.flat[q.num] || null;
+        if(byType && byType[q.num] !== undefined) return byType[q.num];
       }
-      return hit || takeInlineAnswer(q);
+      if(q.inlineAns) return q.inlineAns;
+      const br = peekBracketAnswer(q);
+      if(br) return br;
+      return answerMaps.flat[q.num] || null;
+    }
+
+    // 题干括号里的答案如果和最终答案一致，就把括号清空，避免答案留在题干里
+    function cleanStemAnswer(q, ans){
+      const br = peekBracketAnswer(q);
+      if(br && ans && normAns(br) === normAns(ans)){
+        q.stem = q.stem.replace(BRACKET_ANS_RE, '（  ）');
+      }
     }
 
     rawQuestions.forEach(q => {
       const ansRaw = lookupAnswer(q);
+      cleanStemAnswer(q, ansRaw);
       const looksLikeTF = (q.options.length === 0);
 
       if(q.sectionType === 'tf' || (looksLikeTF && q.sectionType !== 'single' && q.sectionType !== 'multi')){
@@ -1559,16 +1633,20 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
       else if(ansRaw && /^[A-H]$/.test(ansRaw)) isMulti = false;
       else isMulti = false; // 缺省按单选处理，用户可在预览中核对
 
+      // 选择题的答案必须是字母；单选只能 1 个，多选至少 2 个，否则标成"未识别"，不悄悄放过
+      const letters = (ansRaw && /^[A-H]+$/i.test(ansRaw)) ? ansRaw.toUpperCase() : null;
+      const countOk = letters && (isMulti ? letters.length >= 2 : letters.length === 1);
       const target = isMulti ? result.multi : result.single;
       target.push({
         num:q.num,
         stem:q.stem,
         options:q.options,
-        answer: ansRaw ? ansRaw.toUpperCase() : null,
-        flagged: !ansRaw
+        answer: letters,
+        flagged: !countOk
       });
     });
 
+    result.declared = extractDeclared(paragraphs, sections);
     return result;
   }
 
@@ -1664,46 +1742,95 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
     return q.single.length * s + q.multi.length * m + q.tf.length * t;
   }
 
-  // 导出前体检：汇总所有试卷里的问题，显示在导出面板上方
-  function updateIssueSummary(){
-    const box = document.getElementById('issueSummary');
-    if(!box) return;
+  // 导出前体检：汇总所有试卷里的问题
+  // 检查项：每道题自身（题干、选项、答案）、题数是否等于"标准题数"、题数是否等于试卷自己写的题数、总分是否等于设定总分
+  function collectIssues(){
     const cfg = getCfg();
     const lines = [];
     let totalQ = 0, verifyN = 0;
+    const scores = [];
+    const kinds = ['single', 'multi', 'tf'];
+
     state.files.forEach(item => {
       if(!item.questions) return;
       const q = item.questions;
+      const nm = `《${stripExt(item.name)}》`;
       totalQ += q.single.length + q.multi.length + q.tf.length;
-      ['single','multi','tf'].forEach(kind => {
+
+      kinds.forEach(kind => {
         q[kind].forEach((qq, i) => {
           const iss = validateQuestion(qq, kind);
-          if(iss.length) lines.push(`《${item.name.replace(/\.[^.]+$/,'')}》${KIND_NAME[kind]}第 ${i+1} 题：${iss.join('；')}`);
+          if(iss.length) lines.push(`${nm}${KIND_NAME[kind]}第 ${i+1} 题：${iss.join('；')}`);
           if(qq.verify && !qq.verified) verifyN++;
         });
       });
-      if(item.expect){
-        ['single','multi','tf'].forEach(kind => {
-          if(q[kind].length !== item.expect[kind]){
-            lines.push(`《${item.name.replace(/\.[^.]+$/,'')}》${KIND_NAME[kind]}应有 ${item.expect[kind]} 题，现在是 ${q[kind].length} 题`);
+
+      // 1) 标准题数（页面"解析规则"里可改；AI 出题时用本次要求的题数）
+      const std = item.expect || {
+        single: parseInt(cfg.cfg_expect_single, 10),
+        multi: parseInt(cfg.cfg_expect_multi, 10),
+        tf: parseInt(cfg.cfg_expect_tf, 10),
+      };
+      kinds.forEach(kind => {
+        const e = std[kind];
+        if(Number.isFinite(e) && e > 0 && q[kind].length !== e){
+          lines.push(`${nm}${KIND_NAME[kind]}标准是 ${e} 题，现在是 ${q[kind].length} 题`);
+        }
+      });
+
+      // 2) 试卷自己写的题数（可能说明有题没识别出来）
+      const dc = q.declared;
+      if(dc){
+        kinds.forEach(kind => {
+          if(dc[kind] !== null && dc[kind] !== undefined && dc[kind] !== q[kind].length){
+            lines.push(`${nm}试卷里写的${KIND_NAME[kind]}是 ${dc[kind]} 题，实际识别到 ${q[kind].length} 题，可能有题没识别出来`);
           }
         });
+        const sum = q.single.length + q.multi.length + q.tf.length;
+        if(dc.total !== null && dc.total !== undefined && dc.total !== sum){
+          lines.push(`${nm}试卷里写的总题数是 ${dc.total} 题，实际识别到 ${sum} 题`);
+        }
       }
+
+      // 3) 总分
+      const sc = calcScore(q, cfg);
+      const target = Number(cfg.cfg_score_total);
+      if(target > 0 && sc !== target){
+        lines.push(`${nm}总分是 ${sc} 分，不是 ${target} 分（题数 × 每题分值）`);
+      }
+      scores.push(`${stripExt(item.name)}：总分 ${sc}`);
     });
-    if(totalQ === 0){ box.style.display = 'none'; return; }
+
+    return { lines, totalQ, verifyN, scoreTxt: scores.join('；') };
+  }
+
+  // 导出按钮的"二次确认"状态：有问题时第一次点只提示，第二次点才真正导出；任何修改都会取消确认状态
+  const EXPORT_LABEL = exportBtn.textContent;
+  let exportArmed = false;
+  function disarmExport(){
+    exportArmed = false;
+    exportBtn.textContent = EXPORT_LABEL;
+    exportBtn.classList.remove('armed');
+  }
+
+  function updateIssueSummary(){
+    const box = document.getElementById('issueSummary');
+    if(!box) return;
+    if(exportArmed) disarmExport();
+    const r = collectIssues();
+    if(r.totalQ === 0){ box.style.display = 'none'; return; }
     box.style.display = 'block';
-    box.className = lines.length ? 'issue-box bad' : 'issue-box good';
-    const scoreTxt = state.files.filter(f => f.questions).map(f => `${f.name.replace(/\.[^.]+$/,'')}：总分 ${calcScore(f.questions, cfg)}`).join('；');
+    box.className = r.lines.length ? 'issue-box bad' : 'issue-box good';
     let html = '';
-    if(lines.length){
-      html += `<b>⚠ 发现 ${lines.length} 处需要处理（导出前建议先改好）：</b><ul>` +
-        lines.slice(0, 12).map(l => `<li>${escapeHtml(l)}</li>`).join('') +
-        (lines.length > 12 ? `<li>……另有 ${lines.length - 12} 处</li>` : '') + '</ul>';
+    if(r.lines.length){
+      html += `<b>⚠ 发现 ${r.lines.length} 处需要处理（导出前建议先改好）：</b><ul>` +
+        r.lines.slice(0, 12).map(l => `<li>${escapeHtml(l)}</li>`).join('') +
+        (r.lines.length > 12 ? `<li>……另有 ${r.lines.length - 12} 处</li>` : '') + '</ul>';
     }else{
-      html += `<b>✓ 检查通过：</b>共 ${totalQ} 题，答案格式都正确。`;
+      html += `<b>✓ 检查通过：</b>共 ${r.totalQ} 题，答案、题数、总分都没问题。`;
     }
-    if(verifyN) html += `<div class="verify-note">🔶 还有 ${verifyN} 题标了"需核实"：涉及具体数值或条款，请对照团标原文确认；确认后点题目右上角的"需核实"标签即可取消。</div>`;
-    html += `<div class="score-note">${escapeHtml(scoreTxt)}</div>`;
+    if(r.verifyN) html += `<div class="verify-note">🔶 还有 ${r.verifyN} 题标了"需核实"：涉及具体数值或条款，请对照团标原文确认；确认后点题目右上角的"需核实"标签即可取消。</div>`;
+    html += `<div class="score-note">${escapeHtml(r.scoreTxt)}</div>`;
     box.innerHTML = html;
   }
 
@@ -1964,414 +2091,7 @@ const TEMPLATE_XLSX_BASE64 = "UEsDBAoAAAAAAIdO4kAAAAAAAAAAAAAAAAAJAAAAZG9jUHJvcH
     return row;
   }
 
-  // ============================================================
-  // AI 出题（接入 DeepSeek，这一步需要联网）
-  // 你输入一个主题（可选：再贴上团标/教材原文），点一下就生成
-  // 10 道单选 + 5 道多选 + 5 道判断，进入下方的预览编辑区，
-  // 核对无误后再导出 Excel。
-  // API Key 只由你在页面里填写，仅保存在这台设备的浏览器中，
-  // 不会写进代码，也不会上传到仓库。
-  // ============================================================
-
-  const AI_STORE = 'exam_tool_ai_cfg_v1';
-  const aiTopic = document.getElementById('aiTopic');
-  const aiRef = document.getElementById('aiRef');
-  const aiNSingle = document.getElementById('aiNSingle');
-  const aiNMulti = document.getElementById('aiNMulti');
-  const aiNTf = document.getElementById('aiNTf');
-  const aiKey = document.getElementById('aiKey');
-  const aiBase = document.getElementById('aiBase');
-  const aiModel = document.getElementById('aiModel');
-  const aiRemember = document.getElementById('aiRemember');
-  const aiGenBtn = document.getElementById('aiGenBtn');
-  const aiTestBtn = document.getElementById('aiTestBtn');
-  const aiClearBtn = document.getElementById('aiClearBtn');
-  const aiStatus = document.getElementById('aiStatus');
-  const aiCfgToggle = document.getElementById('aiCfgToggle');
-  const aiCfgBody = document.getElementById('aiCfgBody');
-
-  aiCfgToggle.addEventListener('click', () => {
-    aiCfgToggle.classList.toggle('open');
-    aiCfgBody.classList.toggle('open');
-  });
-
-  (function loadAiCfg(){
-    try{
-      const raw = localStorage.getItem(AI_STORE);
-      if(!raw) return;
-      const c = JSON.parse(raw);
-      if(c.key) aiKey.value = c.key;
-      if(c.base) aiBase.value = c.base;
-      if(c.model) aiModel.value = c.model;
-      if(c.topic) aiTopic.value = c.topic;
-      aiRemember.checked = c.remember !== false;
-    }catch(e){ /* ignore */ }
-  })();
-
-  function saveAiCfg(){
-    try{
-      if(aiRemember.checked){
-        localStorage.setItem(AI_STORE, JSON.stringify({
-          key: aiKey.value.trim(), base: aiBase.value.trim(), model: aiModel.value.trim(),
-          topic: aiTopic.value.trim(), remember: true
-        }));
-      }else{
-        localStorage.setItem(AI_STORE, JSON.stringify({
-          base: aiBase.value.trim(), model: aiModel.value.trim(), topic: aiTopic.value.trim(), remember: false
-        }));
-      }
-    }catch(e){ /* ignore */ }
-  }
-
-  aiClearBtn.addEventListener('click', () => {
-    aiKey.value = '';
-    try{ localStorage.removeItem(AI_STORE); }catch(e){}
-    setAiStatus('已清除本机保存的 Key 和设置。', 'ok');
-  });
-
-  function setAiStatus(msg, kind){
-    aiStatus.className = 'ai-status' + (kind ? ' ' + kind : '');
-    aiStatus.textContent = msg;
-    aiStatus.style.display = msg ? 'block' : 'none';
-  }
-
-  // ---------- 内置 AI（在 claude.ai 里打开时，直接用你的 Claude，不需要 API Key） ----------
-  // 页面在 claude.ai 里打开时，会自动检测到"内置 AI"，出题走你自己的 Claude 账号，
-  // 此时"AI 接口设置"整块隐藏。在 GitHub Pages 等普通网页里打开则没有内置 AI，
-  // 回到"填 DeepSeek API Key"的方式。
-  let aiMode = 'deepseek';          // 'claude' | 'deepseek'
-  let claudeSample = null;
-  const aiBuiltinNote = document.getElementById('aiBuiltinNote');
-
-  function applyAiMode(){
-    const builtin = aiMode === 'claude';
-    aiBuiltinNote.style.display = builtin ? 'block' : 'none';
-    aiCfgToggle.style.display = builtin ? 'none' : '';
-    aiCfgBody.style.display = builtin ? 'none' : '';
-  }
-  (async function detectBuiltinAi(){
-    if(!window.claude || typeof window.claude.use !== 'function') return;
-    aiCfgToggle.style.display = 'none';      // 检测期间先藏起来，避免闪一下 Key 输入框
-    aiCfgBody.style.display = 'none';
-    try{
-      const s = await window.claude.use('sample');
-      if(s){ claudeSample = s; aiMode = 'claude'; }
-    }catch(e){ /* 当作没有内置 AI */ }
-    applyAiMode();
-  })();
-
-  function aiSettings(){
-    return {
-      key: aiKey.value.trim(),
-      base: (aiBase.value.trim() || 'https://api.deepseek.com').replace(/\/+$/, ''),
-      model: aiModel.value.trim() || 'deepseek-chat',
-    };
-  }
-
-  // 把各种失败原因翻译成能看懂的话
-  function explainAiError(e, status, bodyText){
-    if(e && e.code && !status){
-      const m = {
-        cancelled: '已停止。',
-        not_granted: '你没有允许这个页面使用 Claude。刷新页面后重新点"生成试题"，在弹出的提示里选允许。',
-        session_expired: '登录已过期，请刷新页面并重新登录 Claude。',
-        sampling_disabled: '你的账号或所在组织没有开通 Claude 调用。',
-        rate_limited: '调用太频繁，或已达到你账号的使用额度。过几分钟再试。',
-        refused: 'Claude 拒绝了这次请求，请换一个主题表述再试。',
-        empty_completion: 'Claude 没有返回内容，请重试。',
-        invalid_json: 'Claude 返回的内容格式不对，请重试一次。',
-        prompt_too_large: '参考资料太长了，请缩短后再试。',
-        upstream_error: '服务暂时出问题，请稍后重试。',
-      };
-      return m[e.code] || ('出题失败（' + e.code + '）：' + (e.message || ''));
-    }
-    if(e && e.name === 'AbortError') return '等待超过 2.5 分钟，已取消。可以稍后重试，或把题量调小一点。';
-    if(status === 401 || status === 403) return 'API Key 无效或没有权限（' + status + '）。请检查 Key 是否填对、是否被停用。';
-    if(status === 402) return '账户余额不足（402）。请到 DeepSeek 开放平台充值后再试。';
-    if(status === 429) return '请求太频繁或额度被限流（429）。等一两分钟再试。';
-    if(status === 400 || status === 422) return '请求被拒绝（' + status + '）：' + (bodyText || '').slice(0, 160);
-    if(status >= 500) return 'DeepSeek 服务暂时不可用（' + status + '），稍后重试。';
-    if(status) return '调用失败（' + status + '）：' + (bodyText || '').slice(0, 160);
-    return '连接失败：浏览器没能连上 ' + aiSettings().base + '。可能是网络不通，也可能是该接口不允许网页直接访问（跨域限制）。' +
-      '如果换网络仍然失败，请告诉我，我改用中转方式。';
-  }
-
-  aiTestBtn.addEventListener('click', async () => {
-    const st = aiSettings();
-    if(!st.key){ setAiStatus('请先填写 API Key。', 'bad'); return; }
-    setAiStatus('正在测试连接…');
-    let status = 0, text = '';
-    try{
-      const res = await fetch(st.base + '/models', { headers:{ 'Authorization':'Bearer ' + st.key } });
-      status = res.status; text = await res.text();
-      if(res.ok){ saveAiCfg(); setAiStatus('✓ 连接成功，Key 有效。', 'ok'); return; }
-    }catch(e){
-      setAiStatus('✕ ' + explainAiError(e, 0, ''), 'bad'); return;
-    }
-    setAiStatus('✕ ' + explainAiError(null, status, text), 'bad');
-  });
-
-  function buildAiPrompt(topic, ref, ns, nm, nt){
-    const refBlock = ref
-      ? `【参考资料】\n${ref}\n\n出题必须严格依据上面的参考资料，资料里没有的内容不要出题；每题的正确答案要能在资料中找到依据。`
-      : `没有提供参考资料。请依据国内公认的临床护理规范和通用知识出题，不要编造具体的标准条款编号或页码。`;
-    return `你是医院护理培训考试的命题专家。请围绕下面的主题出一套考试题。
-
-【主题】${topic}
-
-${refBlock}
-
-【题量】单选题 ${ns} 道、多选题 ${nm} 道、判断题 ${nt} 道。题目均为基础知识点。
-
-【命题要求】
-1. 覆盖面：题目要覆盖该主题的不同方面（例如：评估与适应证、操作要点、观察与记录、并发症与处理、健康宣教、感染防控、应急处置），不要集中在同一个知识点上，不要出现重复或近似的题。
-2. 单选题：4 个选项，只有 1 个正确。错误选项要"似是而非"（常见的错误做法或相近概念），不能是一眼就能排除的荒谬选项；4 个选项长度和句式尽量接近，正确答案不要总是最长的；不要使用"以上都对""以上都不对""A 和 B"这类写法。
-3. 多选题：4 或 5 个选项，正确项数在 2~4 之间，各题的正确项数要有变化（不能全是 3 个），其中至少有 2 题只有 2 个正确项；错误选项同样要似是而非。
-4. 判断题：陈述句，对或错必须明确，不使用模糊措辞；错误的陈述应是常见的错误认知，不要只靠加"绝对""随意""禁止"之类的词来制造错误；对和错的数量大致均衡。
-5. 所有题干的末尾都用中文括号"（  ）"留出作答位置。
-6. verify 字段：如果这道题的正确答案取决于具体的数值、时间、角度、深度、频次、距离或具体条款，需要对照标准原文才能确认，则设为 true，否则设为 false。
-7. 语言简洁、规范，每题自洽。
-
-【输出格式】只输出一个 JSON 对象，不要输出任何解释，也不要使用 markdown 代码块。结构如下：
-{
-  "single": [ {"stem": "题干（  ）", "options": ["选项内容1", "选项内容2", "选项内容3", "选项内容4"], "answer": "B", "verify": false} ],
-  "multi":  [ {"stem": "题干（  ）", "options": ["…", "…", "…", "…"], "answer": "ACD", "verify": false} ],
-  "tf":     [ {"stem": "陈述句（  ）", "answer": "正确", "verify": false} ]
-}
-说明：options 里只写选项内容，不要带"A."这样的字母前缀；answer 对单选和多选写选项字母，对判断题写"正确"或"错误"；single 必须正好 ${ns} 个，multi 必须正好 ${nm} 个，tf 必须正好 ${nt} 个。`;
-  }
-
-  function shuffleInPlace(a){
-    for(let i=a.length-1;i>0;i--){
-      const j = Math.floor(Math.random() * (i+1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-
-  // 选项里带"以上""A和B"这类互相引用的写法时，不能打乱顺序
-  function hasPositionalRef(opts){
-    return opts.some(t => /以上|上述|全部|都对|都不|[A-D]\s*[和、与及,，]\s*[A-D]|均正确|均错误/.test(t));
-  }
-
-  function fixStem(stem, isTf){
-    let t = String(stem || '').trim();
-    if(!/[（(]\s*[）)]/.test(t)){
-      if(!isTf) t = t.replace(/[？?：:]\s*$/, '');
-      t += '（  ）';
-    }
-    return t;
-  }
-
-  function cleanOpt(s){
-    return String(s == null ? '' : s).trim().replace(/^[A-Ha-h][\.、．\)）:：]\s*/, '');
-  }
-
-  function letterIdxs(ans, n){
-    return String(ans == null ? '' : ans).toUpperCase().replace(/[^A-H]/g, '').split('')
-      .map(l => LETTERS.indexOf(l)).filter(i => i >= 0 && i < n);
-  }
-
-  // 把模型返回的 JSON 整理成工具内部的题目结构，并把答案位置打散
-  function normalizeAi(obj){
-    const warn = [];
-    const out = { single:[], multi:[], tf:[], unclassified:[] };
-
-    // ---- 单选 ----
-    const singles = [];
-    (Array.isArray(obj.single) ? obj.single : []).forEach((x, i) => {
-      const opts = (Array.isArray(x.options) ? x.options : []).map(cleanOpt).filter(Boolean).slice(0, 6);
-      const idxs = letterIdxs(x.answer, opts.length);
-      if(opts.length < 2 || idxs.length !== 1 || !String(x.stem || '').trim()){
-        warn.push(`单选第 ${i+1} 题格式不完整，已跳过`);
-        return;
-      }
-      singles.push({ stem: fixStem(x.stem, false), opts, ci: idxs[0], verify: !!x.verify });
-    });
-    // 让正确答案的位置均匀分布在 A/B/C/D
-    const targets = [];
-    for(let i=0;i<singles.length;i++) targets.push(i % 4);
-    shuffleInPlace(targets);
-    singles.forEach((q, i) => {
-      const t = targets[i];
-      if(!hasPositionalRef(q.opts) && t < q.opts.length && t !== q.ci){
-        [q.opts[t], q.opts[q.ci]] = [q.opts[q.ci], q.opts[t]];
-        q.ci = t;
-      }
-      out.single.push({
-        num:String(i+1), stem:q.stem,
-        options: q.opts.map((t2, k) => ({ letter:LETTERS[k], text:t2 })),
-        answer: LETTERS[q.ci], flagged:false, verify:q.verify
-      });
-    });
-
-    // ---- 多选 ----
-    (Array.isArray(obj.multi) ? obj.multi : []).forEach((x, i) => {
-      let opts = (Array.isArray(x.options) ? x.options : []).map(cleanOpt);
-      const idxs = letterIdxs(x.answer, opts.length);
-      const okOpts = opts.filter(Boolean);
-      if(okOpts.length < 3 || idxs.length < 2 || !String(x.stem || '').trim()){
-        warn.push(`多选第 ${i+1} 题格式不完整，已跳过`);
-        return;
-      }
-      opts = opts.slice(0, 8);
-      let order = opts.map((_, k) => k);
-      if(!hasPositionalRef(opts)) shuffleInPlace(order);
-      const answerSet = new Set(idxs);
-      const newOpts = order.map(k => opts[k]);
-      const newAns = order.map((k, pos) => answerSet.has(k) ? LETTERS[pos] : '').join('');
-      out.multi.push({
-        num:String(out.multi.length+1), stem: fixStem(x.stem, false),
-        options: newOpts.map((t2, k) => ({ letter:LETTERS[k], text:t2 })).filter(o => o.text),
-        answer: newAns, flagged:false, verify: !!x.verify
-      });
-    });
-
-    // ---- 判断 ----
-    (Array.isArray(obj.tf) ? obj.tf : []).forEach((x, i) => {
-      const a = String(x.answer == null ? '' : x.answer).trim().toLowerCase();
-      let v = null;
-      if(['正确','对','√','true','是','t'].includes(a)) v = '正确';
-      else if(['错误','错','×','x','false','否','f'].includes(a)) v = '错误';
-      if(!v || !String(x.stem || '').trim()){
-        warn.push(`判断第 ${i+1} 题格式不完整，已跳过`);
-        return;
-      }
-      out.tf.push({ num:String(out.tf.length+1), stem: fixStem(x.stem, true), answer:v, flagged:false, verify: !!x.verify });
-    });
-
-    // 多选题里，选项被打乱后字母要重新按顺序排列，答案字母已同步
-    return { questions: out, warn };
-  }
-
-  function parseAiJson(text){
-    let t = String(text || '').trim();
-    t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    try{ return JSON.parse(t); }catch(e){ /* 再试一次：截取第一个 { 到最后一个 } */ }
-    const a = t.indexOf('{'), b = t.lastIndexOf('}');
-    if(a >= 0 && b > a) return JSON.parse(t.slice(a, b + 1));
-    throw new Error('模型返回的内容不是有效的 JSON');
-  }
-
-  let aiBusy = false;
-  let aiCtl = null;
-  const aiStopBtn = document.getElementById('aiStopBtn');
-  aiStopBtn.addEventListener('click', () => { if(aiCtl) aiCtl.abort(); });
-
-  // 向 AI 要一整份题的 JSON 文本。两种来源：Claude 内置 / DeepSeek（需 Key）
-  async function requestAiText(prompt, st, signal, onProgress){
-    if(aiMode === 'claude'){
-      const r = await claudeSample(prompt, {
-        modelTier: 'default',
-        cache: false,                       // 每次点"生成"都要得到一套新题，不复用缓存
-        signal,
-        onText: ({ text }) => onProgress(text.length)
-      });
-      if(r.truncated){
-        const err = new Error('truncated'); err.isTruncated = true; throw err;
-      }
-      return r.text;
-    }
-    const res = await fetch(st.base + '/chat/completions', {
-      method:'POST',
-      signal,
-      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + st.key },
-      body: JSON.stringify({
-        model: st.model,
-        messages: [
-          { role:'system', content:'你是严谨的医院护理培训考试命题专家，只输出 JSON。' },
-          { role:'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 7000,
-        response_format: { type:'json_object' },
-        stream: false
-      })
-    });
-    const bodyText = await res.text();
-    if(!res.ok){
-      const err = new Error('HTTP ' + res.status); err.httpStatus = res.status; err.httpBody = bodyText; throw err;
-    }
-    const data = JSON.parse(bodyText);
-    return data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-  }
-
-  aiGenBtn.addEventListener('click', async () => {
-    if(aiBusy) return;
-    const topic = aiTopic.value.trim();
-    const st = aiSettings();
-    const ns = Math.max(0, Math.min(30, parseInt(aiNSingle.value, 10) || 0));
-    const nm = Math.max(0, Math.min(30, parseInt(aiNMulti.value, 10) || 0));
-    const nt = Math.max(0, Math.min(30, parseInt(aiNTf.value, 10) || 0));
-    if(!topic){ setAiStatus('请先填写考试主题。', 'bad'); return; }
-    if(aiMode !== 'claude' && !st.key){
-      setAiStatus('请先展开"AI 接口设置"，填写你的 DeepSeek API Key。', 'bad');
-      if(!aiCfgBody.classList.contains('open')) aiCfgToggle.click();
-      return;
-    }
-    if(ns + nm + nt === 0){ setAiStatus('题量不能全是 0。', 'bad'); return; }
-
-    aiBusy = true;
-    aiGenBtn.disabled = true;
-    aiStopBtn.style.display = 'inline-block';
-    if(aiMode !== 'claude') saveAiCfg();
-    const t0 = Date.now();
-    let written = 0;
-    const tick = () => {
-      const sec = Math.round((Date.now() - t0) / 1000);
-      setAiStatus(`正在生成试题…已用 ${sec} 秒` + (written ? `，已写 ${written} 字` : '（通常 30~90 秒；首次使用会先弹出授权提示）'));
-    };
-    const timer = setInterval(tick, 1000);
-    tick();
-
-    aiCtl = new AbortController();
-    const to = setTimeout(() => aiCtl.abort(), 240000);
-    let status = 0, bodyText = '';
-    try{
-      const content = await requestAiText(
-        buildAiPrompt(topic, aiRef.value.trim(), ns, nm, nt), st, aiCtl.signal, n => { written = n; });
-      let parsed;
-      try{ parsed = parseAiJson(content); }
-      catch(pe){ const err = new Error('parse'); err.isParse = true; throw err; }
-      const { questions, warn } = normalizeAi(parsed);
-
-      let name = topic;
-      if(!/试题|试卷|考试题|考核/.test(name)) name += '考试题';
-      const item = {
-        source:'ai', file:null, name: name + '.txt', status:'ok',
-        paragraphs:null, questions, error:null,
-        expect:{ single:ns, multi:nm, tf:nt }
-      };
-      state.files.push(item);
-      renderFileList();
-      parseBtn.disabled = false;
-      previewArea.style.display = 'block';
-      renderPreview();
-      exportPanel.style.display = 'block';
-
-      const c = questions;
-      let msg = `✓ 已生成：单选 ${c.single.length} / 多选 ${c.multi.length} / 判断 ${c.tf.length}。请在下方逐题核对，可直接修改。`;
-      if(warn.length) msg += '\n⚠ ' + warn.join('；');
-      const tfT = c.tf.filter(q => q.answer === '正确').length;
-      if(c.tf.length >= 4 && (tfT === 0 || tfT === c.tf.length)) msg += '\n⚠ 判断题答案全是同一个，建议改几题。';
-      setAiStatus(msg, warn.length ? 'warn' : 'ok');
-      previewArea.scrollIntoView({ behavior:'smooth', block:'start' });
-    }catch(e){
-      let text;
-      if(e && e.isParse) text = '返回的内容无法解析成题目，请再点一次"生成试题"；如果反复出现，把题量调小一些。';
-      else if(e && e.isTruncated) text = '内容太长被截断了，请把题量调小一些再试，或分两次出题。';
-      else if(e && e.httpStatus) text = explainAiError(null, e.httpStatus, e.httpBody);
-      else text = explainAiError(e, 0, '');
-      setAiStatus((e && e.code === 'cancelled' ? '' : '✕ ') + text, e && e.code === 'cancelled' ? '' : 'bad');
-    }finally{
-      clearTimeout(to);
-      clearInterval(timer);
-      aiBusy = false;
-      aiCtl = null;
-      aiGenBtn.disabled = false;
-      aiStopBtn.style.display = 'none';
-    }
-  });
+  
 
   // ============================================================
   // XLSX 生成：基于内嵌模板做“外科手术式”XML 替换，完整保留原模板格式
@@ -2569,6 +2289,20 @@ ${refBlock}
   let lastGeneratedItems = []; // 缓存最近一次生成的 {filename, blob}，供手动兜底按钮复用
 
   exportBtn.addEventListener('click', async () => {
+    // 有问题时，第一次点击只提示并滚动到问题列表；再点一次才真正导出
+    if(!exportArmed){
+      const issues = collectIssues().lines;
+      if(issues.length > 0){
+        exportArmed = true;
+        exportBtn.textContent = `还有 ${issues.length} 处问题 — 仍要导出请再点一次`;
+        exportBtn.classList.add('armed');
+        log(`导出前发现 ${issues.length} 处问题，请先查看上方的问题列表；确认无误可再点一次导出`);
+        const box = document.getElementById('issueSummary');
+        if(box && box.scrollIntoView) box.scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
+    }
+    disarmExport();
     exportBtn.disabled = true;
     const origText = exportBtn.textContent;
     exportBtn.textContent = '生成中…';
@@ -2669,6 +2403,33 @@ ${refBlock}
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
+
+  // ============================================================
+  // 版本号角标：右下角显示版本号和更新日期；30 天内的版本带 NEW 标签；点击展开更新内容
+  // ============================================================
+  (function initVersionBadge(){
+    const badge = document.getElementById('verBadge');
+    const panel = document.getElementById('verPanel');
+    if(!badge || !panel) return;
+    document.getElementById('verText').textContent = `v${APP_INFO.version} · ${APP_INFO.date}`;
+    const days = (Date.now() - new Date(APP_INFO.date + 'T00:00:00').getTime()) / 86400000;
+    if(days <= 30) document.getElementById('verNew').style.display = 'inline-block';
+    document.getElementById('verPanelTitle').textContent = `试题转换台 v${APP_INFO.version}（${APP_INFO.date}）`;
+    const body = document.getElementById('verBody');
+    APP_INFO.changelog.forEach((c, i) => {
+      const h = document.createElement('h4');
+      h.textContent = `v${c.version} · ${c.date}` + (i === 0 ? '（当前）' : '');
+      const ul = document.createElement('ul');
+      c.items.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+      body.appendChild(h); body.appendChild(ul);
+    });
+    function setOpen(open){
+      panel.style.display = open ? 'block' : 'none';
+      badge.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    badge.addEventListener('click', () => setOpen(panel.style.display === 'none'));
+    document.getElementById('verClose').addEventListener('click', () => setOpen(false));
+  })();
 
 })();
 </script>

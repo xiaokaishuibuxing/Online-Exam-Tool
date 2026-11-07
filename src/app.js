@@ -1,12 +1,16 @@
 
 /* ============================================================
-   试题转换台 Online — 核心逻辑
-   解析试题、生成 Excel 全部在浏览器本地完成；
-   只有"AI 出题"这一步会联网调用 DeepSeek 接口。
+   试题转换台 — 核心逻辑
+   解析试题、在线修改、生成 Excel 全部在浏览器本地完成。
+   （在线版额外带"AI 出题"，该部分用 @AI 标记包住，离线版构建时整段删除，
+   所以离线版里没有任何联网代码。）
    ============================================================ */
 
 (function(){
   'use strict';
+
+  // 版本信息（构建时由 src/version.json 注入）
+  const APP_INFO = __VERSION_JSON__;
 
   // ============================================================
   // 内置浏览器（钉钉/微信/企业微信等）检测
@@ -83,7 +87,8 @@
   const CFG_IDS = [
     'cfg_single_kw','cfg_multi_kw','cfg_tf_kw','cfg_ans_kw',
     'cfg_qnum_re','cfg_opt_re','cfg_tf_true','cfg_tf_false',
-    'cfg_score_single','cfg_score_multi','cfg_score_tf','cfg_score_total'
+    'cfg_score_single','cfg_score_multi','cfg_score_tf','cfg_score_total',
+    'cfg_expect_single','cfg_expect_multi','cfg_expect_tf'
   ];
   const CFG_DEFAULTS = {};
   CFG_IDS.forEach(id => { CFG_DEFAULTS[id] = document.getElementById(id).value; });
@@ -108,7 +113,7 @@
   }
 
   // 改了分值，导出前体检里的"总分"要跟着刷新
-  ['cfg_score_single','cfg_score_multi','cfg_score_tf'].forEach(id => {
+  ['cfg_score_single','cfg_score_multi','cfg_score_tf','cfg_score_total','cfg_expect_single','cfg_expect_multi','cfg_expect_tf'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => { updateIssueSummary(); });
   });
 
@@ -144,7 +149,7 @@
   })();
 
   // ---------- 输入方式 Tab 切换（AI 出题 / 上传 .docx / 粘贴文字） ----------
-  const TAB_PAIRS = [['tabBtnAi','paneAi'], ['tabBtnFile','paneFile'], ['tabBtnPaste','panePaste']];
+  const TAB_PAIRS = [/*@AI:BEGIN*/['tabBtnAi','paneAi'], /*@AI:END*/['tabBtnFile','paneFile'], ['tabBtnPaste','panePaste']];
   TAB_PAIRS.forEach(([btnId]) => {
     document.getElementById(btnId).addEventListener('click', () => {
       TAB_PAIRS.forEach(([b2, p2]) => {
@@ -168,13 +173,45 @@
     fileInput.value = ''; // 允许重复选择同名文件
   });
 
+  // 选到不是 .docx 的文件时，给出明确的转换提示（不要让用户点了没反应）
+  const fileNotice = document.getElementById('fileNotice');
+
+  function explainUnsupported(name){
+    const ext = ((name.match(/\.([A-Za-z0-9]+)$/) || [])[1] || '').toLowerCase();
+    const n = escapeHtml(name);
+    if(ext === 'doc' || ext === 'dot' || ext === 'wps' || ext === 'wpt' || ext === 'rtf' || ext === 'odt'){
+      const kind = (ext === 'wps' || ext === 'wpt') ? 'WPS 格式' : '旧版 / 其他格式的文档';
+      return `<b>「${n}」是${kind}，本工具只能读取 .docx。</b>请用 Word 或 WPS 打开它，点<b>"另存为"</b>，文件类型选 <b>.docx</b>，再重新上传；也可以把文字复制出来，用上面的"粘贴文字"。`;
+    }
+    if(ext === 'pdf'){
+      return `<b>「${n}」是 PDF，本工具不能直接读取。</b>请用 Word 或 WPS 打开这份 PDF 并<b>另存为 .docx</b> 后再上传；或者把文字复制出来，用上面的"粘贴文字"。`;
+    }
+    if(ext === 'txt' || ext === 'md'){
+      return `<b>「${n}」是纯文本文件。</b>请打开它，复制全部文字，用上面的"粘贴文字"。`;
+    }
+    return `<b>「${n}」不是 .docx 文件，无法识别。</b>请另存为 .docx 后再上传，或把文字复制出来用"粘贴文字"。`;
+  }
+
   function handleFiles(fileListObj){
-    const arr = Array.from(fileListObj).filter(f => /\.docx$/i.test(f.name));
-    if(arr.length === 0){
-      log('未检测到 .docx 文件，请确认文件格式');
+    const all = Array.from(fileListObj);
+    const good = all.filter(f => /\.docx$/i.test(f.name));
+    const bad = all.filter(f => !/\.docx$/i.test(f.name));
+
+    // 提示区：每次选择都刷新；全部是 .docx 时清空
+    if(bad.length){
+      fileNotice.innerHTML = bad.map(f => `<div>${explainUnsupported(f.name)}</div>`).join('');
+      fileNotice.style.display = 'block';
+      bad.forEach(f => log(`不支持的文件：${f.name}（请另存为 .docx）`));
+    }else{
+      fileNotice.style.display = 'none';
+      fileNotice.innerHTML = '';
+    }
+
+    if(good.length === 0){
+      if(all.length === 0) log('没有选到文件');
       return;
     }
-    arr.forEach(f => {
+    good.forEach(f => {
       state.files.push({ source:'docx', file:f, name:f.name, status:'pending', paragraphs:null, questions:null, error:null });
     });
     renderFileList();
@@ -382,6 +419,22 @@
     return items.length >= 2 ? items : null;
   }
 
+  // 单独成行的答案：「答案：B」「【答案】ABD」「正确答案：√」，后面可跟「解析：…」
+  const INLINE_ANS_LINE_RE = /^\s*[【\[（(]?\s*(?:参考|正确|标准)?\s*答\s*案\s*[】\]）)]?\s*[:：]?\s*([A-H](?:\s*[,，、]?\s*[A-H])*|[√×✓✔✗✘]|正确|错误|对|错)\s*[。.；;]?\s*(?:[【\[]?解析[】\]]?.*)?$/;
+  // 解析行：「解析：……」「【解析】……」
+  const EXPLAIN_LINE_RE = /^\s*[【\[]?\s*(?:答案)?解析\s*[】\]]?\s*[:：]?/;
+
+  function normAns(v){
+    let t = String(v || '').replace(/[\s,，、]/g, '');
+    if(t === '✓' || t === '✔') t = '√';
+    if(t === '✗' || t === '✘') t = '×';
+    return t;
+  }
+  function matchInlineAnswerLine(line){
+    const m = String(line || '').match(INLINE_ANS_LINE_RE);
+    return m ? normAns(m[1]) : null;
+  }
+
   function findSectionRanges(paragraphs, cfg){
     const singleKw = splitKw(cfg.cfg_single_kw);
     const multiKw = splitKw(cfg.cfg_multi_kw);
@@ -404,7 +457,8 @@
       if(headKeywordHit(p, singleKw)) markers.push({index:idx, type:'single'});
       else if(headKeywordHit(p, multiKw)) markers.push({index:idx, type:'multi'});
       else if(headKeywordHit(p, tfKw)) markers.push({index:idx, type:'tf'});
-      else if(ansKw.some(kw => p.trim() === kw || (p.startsWith(kw) && p.length <= kw.length + 6))) markers.push({index:idx, type:'answer'});
+      // 注意：单独成行的「答案：B」是某道题自己的答案，不是答案区的起点
+      else if(!matchInlineAnswerLine(p) && ansKw.some(kw => p.trim() === kw || (p.startsWith(kw) && p.length <= kw.length + 6))) markers.push({index:idx, type:'answer'});
     });
 
     return markers;
@@ -480,6 +534,26 @@
     return null;
   }
 
+  // 读出试卷自己写的题数：分节标题里的"共10题"、开头概览里的"单选10题、多选5题、判断5题"、"本试卷共20题"
+  function extractDeclared(paragraphs, sections){
+    const d = { single:null, multi:null, tf:null, total:null };
+    const numRe = /共\s*(\d+)\s*[道题个]/;
+    sections.forEach(m => {
+      if(m.type === 'answer') return;
+      const mm = paragraphs[m.index].match(numRe);
+      if(mm) d[m.type] = parseInt(mm[1], 10);
+    });
+    const head = paragraphs.slice(0, 20).join('\n');
+    [['single', /单(?:项)?(?:选择?)?题?\s*[:：]?\s*(\d+)\s*[道题个]/],
+     ['multi',  /多(?:项)?(?:选择?)?题?\s*[:：]?\s*(\d+)\s*[道题个]/],
+     ['tf',     /(?:判断|是非)题?\s*[:：]?\s*(\d+)\s*[道题个]/]].forEach(([k, re]) => {
+      if(d[k] === null){ const mm = head.match(re); if(mm) d[k] = parseInt(mm[1], 10); }
+    });
+    const tm = head.match(/(?:本?试卷|本?卷|全卷|总共|合计|总计)\s*共?\s*(\d+)\s*[道题个]/);
+    if(tm) d.total = parseInt(tm[1], 10);
+    return d;
+  }
+
   function parseDocxQuestions(paragraphs, cfg){
     const qnumRe = buildQuestionNumRe(cfg.cfg_qnum_re);
     const optRe = buildOptionRe(cfg.cfg_opt_re);
@@ -524,6 +598,14 @@
         continue;
       }
 
+      // 题目后面单独一行的「答案：B」「【答案】ABD」，以及「解析：…」
+      if(current){
+        const ia = matchInlineAnswerLine(line);
+        if(ia){ current.inlineAns = ia; continue; }
+        if(EXPLAIN_LINE_RE.test(line)){ current.skipRest = true; continue; }
+        if(current.skipRest) continue; // 解析的后续段落，不要拼进题干或选项
+      }
+
       // 先检查这一行是不是"多个选项挤在同一行"（如 "A. xxx B. xxx C. xxx D. xxx"）
       const inlineOpts = current ? splitInlineOptions(line, inlineOptScanRe) : null;
       if(inlineOpts && current){
@@ -550,28 +632,38 @@
     // 只有在完全没有分节标题信息时，才退化为按选项数量/答案形态猜测。
     const result = { single:[], multi:[], tf:[], unclassified:[] };
 
-    // 题干括号里直接写了答案，如"……（ B ）"或"……(ABD)"：抽出答案，并把括号清空
-    function takeInlineAnswer(q){
-      const m = q.stem.match(/[（(]\s*([A-H]{1,8}|[√×]|正确|错误)\s*[）)]/);
-      if(!m) return null;
-      q.stem = q.stem.replace(m[0], '（  ）');
-      return m[1];
+    // 题干括号里直接写了答案，如"……（ B ）"、"……(ABD)"、"……（√）"
+    const BRACKET_ANS_RE = /[（(]\s*([A-H](?:\s*[,，、]?\s*[A-H])*|[√×]|正确|错误|对|错)\s*[）)]/;
+    function peekBracketAnswer(q){
+      const m = q.stem.match(BRACKET_ANS_RE);
+      return m ? normAns(m[1]) : null;
     }
 
+    // 取答案的优先顺序：
+    // 1) 答案区里对应题型的子块（最可靠）  2) 题后单独一行的「答案：B」
+    // 3) 题干括号里的答案                  4) 答案区的"不分题型"兜底
     function lookupAnswer(q){
-      let hit = null;
-      if(!q.sectionType) hit = answerMaps.flat[q.num] || null;
-      else{
+      if(q.sectionType){
         const byType = answerMaps[q.sectionType];
-        if(byType && byType[q.num] !== undefined) hit = byType[q.num];
-        // 子块答案区缺失该题号时，退化用 flat（可能不准，但聊胜于无）
-        else hit = answerMaps.flat[q.num] || null;
+        if(byType && byType[q.num] !== undefined) return byType[q.num];
       }
-      return hit || takeInlineAnswer(q);
+      if(q.inlineAns) return q.inlineAns;
+      const br = peekBracketAnswer(q);
+      if(br) return br;
+      return answerMaps.flat[q.num] || null;
+    }
+
+    // 题干括号里的答案如果和最终答案一致，就把括号清空，避免答案留在题干里
+    function cleanStemAnswer(q, ans){
+      const br = peekBracketAnswer(q);
+      if(br && ans && normAns(br) === normAns(ans)){
+        q.stem = q.stem.replace(BRACKET_ANS_RE, '（  ）');
+      }
     }
 
     rawQuestions.forEach(q => {
       const ansRaw = lookupAnswer(q);
+      cleanStemAnswer(q, ansRaw);
       const looksLikeTF = (q.options.length === 0);
 
       if(q.sectionType === 'tf' || (looksLikeTF && q.sectionType !== 'single' && q.sectionType !== 'multi')){
@@ -596,16 +688,20 @@
       else if(ansRaw && /^[A-H]$/.test(ansRaw)) isMulti = false;
       else isMulti = false; // 缺省按单选处理，用户可在预览中核对
 
+      // 选择题的答案必须是字母；单选只能 1 个，多选至少 2 个，否则标成"未识别"，不悄悄放过
+      const letters = (ansRaw && /^[A-H]+$/i.test(ansRaw)) ? ansRaw.toUpperCase() : null;
+      const countOk = letters && (isMulti ? letters.length >= 2 : letters.length === 1);
       const target = isMulti ? result.multi : result.single;
       target.push({
         num:q.num,
         stem:q.stem,
         options:q.options,
-        answer: ansRaw ? ansRaw.toUpperCase() : null,
-        flagged: !ansRaw
+        answer: letters,
+        flagged: !countOk
       });
     });
 
+    result.declared = extractDeclared(paragraphs, sections);
     return result;
   }
 
@@ -701,46 +797,95 @@
     return q.single.length * s + q.multi.length * m + q.tf.length * t;
   }
 
-  // 导出前体检：汇总所有试卷里的问题，显示在导出面板上方
-  function updateIssueSummary(){
-    const box = document.getElementById('issueSummary');
-    if(!box) return;
+  // 导出前体检：汇总所有试卷里的问题
+  // 检查项：每道题自身（题干、选项、答案）、题数是否等于"标准题数"、题数是否等于试卷自己写的题数、总分是否等于设定总分
+  function collectIssues(){
     const cfg = getCfg();
     const lines = [];
     let totalQ = 0, verifyN = 0;
+    const scores = [];
+    const kinds = ['single', 'multi', 'tf'];
+
     state.files.forEach(item => {
       if(!item.questions) return;
       const q = item.questions;
+      const nm = `《${stripExt(item.name)}》`;
       totalQ += q.single.length + q.multi.length + q.tf.length;
-      ['single','multi','tf'].forEach(kind => {
+
+      kinds.forEach(kind => {
         q[kind].forEach((qq, i) => {
           const iss = validateQuestion(qq, kind);
-          if(iss.length) lines.push(`《${item.name.replace(/\.[^.]+$/,'')}》${KIND_NAME[kind]}第 ${i+1} 题：${iss.join('；')}`);
+          if(iss.length) lines.push(`${nm}${KIND_NAME[kind]}第 ${i+1} 题：${iss.join('；')}`);
           if(qq.verify && !qq.verified) verifyN++;
         });
       });
-      if(item.expect){
-        ['single','multi','tf'].forEach(kind => {
-          if(q[kind].length !== item.expect[kind]){
-            lines.push(`《${item.name.replace(/\.[^.]+$/,'')}》${KIND_NAME[kind]}应有 ${item.expect[kind]} 题，现在是 ${q[kind].length} 题`);
+
+      // 1) 标准题数（页面"解析规则"里可改；AI 出题时用本次要求的题数）
+      const std = item.expect || {
+        single: parseInt(cfg.cfg_expect_single, 10),
+        multi: parseInt(cfg.cfg_expect_multi, 10),
+        tf: parseInt(cfg.cfg_expect_tf, 10),
+      };
+      kinds.forEach(kind => {
+        const e = std[kind];
+        if(Number.isFinite(e) && e > 0 && q[kind].length !== e){
+          lines.push(`${nm}${KIND_NAME[kind]}标准是 ${e} 题，现在是 ${q[kind].length} 题`);
+        }
+      });
+
+      // 2) 试卷自己写的题数（可能说明有题没识别出来）
+      const dc = q.declared;
+      if(dc){
+        kinds.forEach(kind => {
+          if(dc[kind] !== null && dc[kind] !== undefined && dc[kind] !== q[kind].length){
+            lines.push(`${nm}试卷里写的${KIND_NAME[kind]}是 ${dc[kind]} 题，实际识别到 ${q[kind].length} 题，可能有题没识别出来`);
           }
         });
+        const sum = q.single.length + q.multi.length + q.tf.length;
+        if(dc.total !== null && dc.total !== undefined && dc.total !== sum){
+          lines.push(`${nm}试卷里写的总题数是 ${dc.total} 题，实际识别到 ${sum} 题`);
+        }
       }
+
+      // 3) 总分
+      const sc = calcScore(q, cfg);
+      const target = Number(cfg.cfg_score_total);
+      if(target > 0 && sc !== target){
+        lines.push(`${nm}总分是 ${sc} 分，不是 ${target} 分（题数 × 每题分值）`);
+      }
+      scores.push(`${stripExt(item.name)}：总分 ${sc}`);
     });
-    if(totalQ === 0){ box.style.display = 'none'; return; }
+
+    return { lines, totalQ, verifyN, scoreTxt: scores.join('；') };
+  }
+
+  // 导出按钮的"二次确认"状态：有问题时第一次点只提示，第二次点才真正导出；任何修改都会取消确认状态
+  const EXPORT_LABEL = exportBtn.textContent;
+  let exportArmed = false;
+  function disarmExport(){
+    exportArmed = false;
+    exportBtn.textContent = EXPORT_LABEL;
+    exportBtn.classList.remove('armed');
+  }
+
+  function updateIssueSummary(){
+    const box = document.getElementById('issueSummary');
+    if(!box) return;
+    if(exportArmed) disarmExport();
+    const r = collectIssues();
+    if(r.totalQ === 0){ box.style.display = 'none'; return; }
     box.style.display = 'block';
-    box.className = lines.length ? 'issue-box bad' : 'issue-box good';
-    const scoreTxt = state.files.filter(f => f.questions).map(f => `${f.name.replace(/\.[^.]+$/,'')}：总分 ${calcScore(f.questions, cfg)}`).join('；');
+    box.className = r.lines.length ? 'issue-box bad' : 'issue-box good';
     let html = '';
-    if(lines.length){
-      html += `<b>⚠ 发现 ${lines.length} 处需要处理（导出前建议先改好）：</b><ul>` +
-        lines.slice(0, 12).map(l => `<li>${escapeHtml(l)}</li>`).join('') +
-        (lines.length > 12 ? `<li>……另有 ${lines.length - 12} 处</li>` : '') + '</ul>';
+    if(r.lines.length){
+      html += `<b>⚠ 发现 ${r.lines.length} 处需要处理（导出前建议先改好）：</b><ul>` +
+        r.lines.slice(0, 12).map(l => `<li>${escapeHtml(l)}</li>`).join('') +
+        (r.lines.length > 12 ? `<li>……另有 ${r.lines.length - 12} 处</li>` : '') + '</ul>';
     }else{
-      html += `<b>✓ 检查通过：</b>共 ${totalQ} 题，答案格式都正确。`;
+      html += `<b>✓ 检查通过：</b>共 ${r.totalQ} 题，答案、题数、总分都没问题。`;
     }
-    if(verifyN) html += `<div class="verify-note">🔶 还有 ${verifyN} 题标了"需核实"：涉及具体数值或条款，请对照团标原文确认；确认后点题目右上角的"需核实"标签即可取消。</div>`;
-    html += `<div class="score-note">${escapeHtml(scoreTxt)}</div>`;
+    if(r.verifyN) html += `<div class="verify-note">🔶 还有 ${r.verifyN} 题标了"需核实"：涉及具体数值或条款，请对照团标原文确认；确认后点题目右上角的"需核实"标签即可取消。</div>`;
+    html += `<div class="score-note">${escapeHtml(r.scoreTxt)}</div>`;
     box.innerHTML = html;
   }
 
@@ -1001,6 +1146,7 @@
     return row;
   }
 
+  /*@AI:BEGIN*/
   // ============================================================
   // AI 出题（接入 DeepSeek，这一步需要联网）
   // 你输入一个主题（可选：再贴上团标/教材原文），点一下就生成
@@ -1410,6 +1556,8 @@ ${refBlock}
     }
   });
 
+  /*@AI:END*/
+
   // ============================================================
   // XLSX 生成：基于内嵌模板做“外科手术式”XML 替换，完整保留原模板格式
   // ============================================================
@@ -1606,6 +1754,20 @@ ${refBlock}
   let lastGeneratedItems = []; // 缓存最近一次生成的 {filename, blob}，供手动兜底按钮复用
 
   exportBtn.addEventListener('click', async () => {
+    // 有问题时，第一次点击只提示并滚动到问题列表；再点一次才真正导出
+    if(!exportArmed){
+      const issues = collectIssues().lines;
+      if(issues.length > 0){
+        exportArmed = true;
+        exportBtn.textContent = `还有 ${issues.length} 处问题 — 仍要导出请再点一次`;
+        exportBtn.classList.add('armed');
+        log(`导出前发现 ${issues.length} 处问题，请先查看上方的问题列表；确认无误可再点一次导出`);
+        const box = document.getElementById('issueSummary');
+        if(box && box.scrollIntoView) box.scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
+    }
+    disarmExport();
     exportBtn.disabled = true;
     const origText = exportBtn.textContent;
     exportBtn.textContent = '生成中…';
@@ -1706,5 +1868,32 @@ ${refBlock}
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
+
+  // ============================================================
+  // 版本号角标：右下角显示版本号和更新日期；30 天内的版本带 NEW 标签；点击展开更新内容
+  // ============================================================
+  (function initVersionBadge(){
+    const badge = document.getElementById('verBadge');
+    const panel = document.getElementById('verPanel');
+    if(!badge || !panel) return;
+    document.getElementById('verText').textContent = `v${APP_INFO.version} · ${APP_INFO.date}`;
+    const days = (Date.now() - new Date(APP_INFO.date + 'T00:00:00').getTime()) / 86400000;
+    if(days <= 30) document.getElementById('verNew').style.display = 'inline-block';
+    document.getElementById('verPanelTitle').textContent = `试题转换台 v${APP_INFO.version}（${APP_INFO.date}）`;
+    const body = document.getElementById('verBody');
+    APP_INFO.changelog.forEach((c, i) => {
+      const h = document.createElement('h4');
+      h.textContent = `v${c.version} · ${c.date}` + (i === 0 ? '（当前）' : '');
+      const ul = document.createElement('ul');
+      c.items.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+      body.appendChild(h); body.appendChild(ul);
+    });
+    function setOpen(open){
+      panel.style.display = open ? 'block' : 'none';
+      badge.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    badge.addEventListener('click', () => setOpen(panel.style.display === 'none'));
+    document.getElementById('verClose').addEventListener('click', () => setOpen(false));
+  })();
 
 })();

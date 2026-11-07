@@ -1,41 +1,61 @@
-# Online-Exam-Tool · 试题转换台 Online
+# New-Exam-Tool · 试题转换台
 
-输入一个考试主题，AI 一键出题（默认 10 单选 + 5 多选 + 5 判断），在页面上逐题核对和修改，再导出成**考试系统导入模板**格式的 Excel。也支持上传 `.docx` 或粘贴文字，自动识别后导出。
+把考试题（上传 `.docx` 或粘贴文字）一键转成**考试系统导入模板**格式的 Excel。
+单个 HTML 文件，**完全离线**运行：没有「AI 出题」页，没有任何联网代码，题目内容不会离开你的设备。
 
-## 怎么用
+当前版本：见 `src/version.json`（页面右下角也会显示版本号和更新日期，新版带 **NEW** 标签）。
 
-1. 打开页面，选「🤖 AI 出题」，填写**考试主题**（有团标/教材原文的话，贴到「参考资料」里，AI 会严格依据它出题）。
-2. 第一次使用：展开「AI 接口设置」，填入你自己的 **DeepSeek API Key**，点「测试连接」。
-3. 点「✨ 生成试题」，等 30~90 秒。
-4. 在下方「核对与修改」里逐题检查：题干、选项、答案都能直接改，也能删除、新增。带橙色「需核实」标签的题涉及具体数值或条款，请对照标准原文确认。
-5. 页面底部的「导出前体检」没有问题后，点「生成并下载全部 Excel 文件」。
+## 功能
 
-每题默认 5 分（单选 / 多选 / 判断），总分由「题数 × 每题分值」自动计算。
+- 上传 `.docx` 或粘贴文字，自动识别单选、多选、判断题和答案，导出 7 个工作表的导入模板（填写前 4 张：试卷信息、单选题、多选题、是非题）。
+- 支持三种答案写法：文末「参考答案」区块、题干括号里直接写答案（`……（B）`）、独立一行的 `【答案】B` / `答案：ABD`。
+- 页面上直接修改题干、选项、答案，可删除、可新增题目。
+- 导出前自动检查：选项不足、单选多答案、多选少于 2 个答案、题数不对（既对照标准 10/5/5，也对照试卷自己写的题数）、总分不是 100。有问题时第一次点击只提示，**再点一次才导出**。
+- 默认每题 5 分；10 单选 + 5 多选 + 5 判断 = 20 题 = 100 分。
+- 选到 `.doc` / `.wps` / `.pdf` 等不支持的文件时，明确提示「请另存为 .docx」。
 
-## 关于 API Key（重要）
+使用方法见 [使用说明.md](使用说明.md)。
 
-- Key 只在页面里填写，保存在**你自己设备的浏览器**里，**不在代码里，不在仓库里**。
-- 这个仓库是公开的：**不要把 Key 提交到仓库，也不要发给别人。**
-- 换一台设备或清除浏览器数据后，需要重新填一次。
-- 只有「AI 出题」会联网，发送的内容是：主题、你贴的参考资料、出题要求。解析和导出都在本机完成。
+## 用 GitHub Pages 在线打开（手机、平板也能用）
 
-## 如果「测试连接」提示连接失败
+一次性设置：仓库 → **Settings → Pages → Source 选 `Deploy from a branch` → Branch 选 `main`、目录 `/ (root)` → Save**。
+1～2 分钟后访问：
 
-多半是网络问题，或浏览器的跨域限制。可以部署 `proxy/worker.js` 作为中转（见文件内说明），再把页面里的「接口地址」改成中转地址。
+    https://xiaokaishuibuxing.github.io/New-Exam-Tool/
 
-## 部署到 GitHub Pages
+之后每次把新的 `index.html` 推送到 `main`，页面会自动更新。
+如果打开后右下角版本号不是最新，是浏览器缓存：强制刷新（电脑 Ctrl+F5 / Cmd+Shift+R；手机可用浏览器的「无痕模式」打开，或清除该网站数据）。
 
-仓库 → Settings → Pages → Source 选 `Deploy from a branch` → Branch 选 `main`、目录选 `/ (root)` → Save。1~2 分钟后访问 `https://<用户名>.github.io/<仓库名>/`。
+## 本地构建与测试
+
+源码在 `src/`，`index.html` 是构建出来的成品：
+
+    python3 build.py                       # 生成离线版 index.html
+    python3 build.py --edition online      # 生成带「AI 出题」的在线版 dist/online.html（需联网，非必需）
+    python3 tests/run_tests.py             # 构建并跑全部回归测试（上传前必跑）
+
+回归测试依赖：`pip install playwright python-docx openpyxl`，并安装 Chromium（`playwright install chromium`）。
+测试内容：误吸、胸腔闭式引流、胰岛素三套固定试题（粘贴和 `.docx` 两种输入）、题干内嵌答案、答案缺失时的二次确认、页面改题、题数检查、不支持文件的提示、版本号、离线保证（整个流程无网络请求）、`index.html` 与源码一致。
+全部通过退出码为 0。**每次改动后、上传前先跑一遍。**
 
 ## 目录结构
 
 | 路径 | 作用 |
 |---|---|
-| `index.html` | 成品，单文件，部署的就是它 |
+| `index.html` | 成品（离线版），GitHub Pages 部署的就是它 |
 | `src/template.html` | 页面结构和样式 |
-| `src/app.js` | 全部业务逻辑（识别、编辑、AI 出题、导出），有中文注释 |
+| `src/app.js` | 全部业务逻辑（识别、编辑、检查、导出） |
+| `src/version.json` | 版本号、更新日期、更新内容 |
 | `src/jszip.min.js` | 第三方压缩库（JSZip，MIT） |
 | `src/template_data.js` | 内嵌的考试系统导入模板（base64） |
-| `build.py` | 把 `src/` 拼成 `index.html`：`python3 build.py` |
-| `proxy/worker.js` | 可选的 Cloudflare Worker 中转 |
-| `tests/` | 回归测试样例和脚本 |
+| `build.py` | 把 `src/` 拼成 `index.html` |
+| `tests/run_tests.py` | 回归测试 |
+| `tests/samples/`、`tests/expected.json` | 固定测试题与期望答案 |
+| `proxy/worker.js` | 仅在线版（AI 出题）可选的中转，离线版用不到 |
+
+## 发新版的步骤
+
+1. 改 `src/` 里的源码；
+2. 改 `src/version.json` 的 `version`、`date` 和更新内容；
+3. `python3 tests/run_tests.py`，确认全部通过；
+4. 提交并推送 `index.html` 与 `src/`。

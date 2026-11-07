@@ -1,0 +1,7 @@
+{
+  "insulin":       {"single": "BABBCBBCDA", "multi": ["ABCD","ABCD","ABCD","ABC","ABC"], "tf": ["错误","正确","错误","正确","错误"], "title": "胰岛素皮下注射团体标准基础知识考试题", "total": 100},
+  "wuxi":          {"single": "BBBBABBBBC", "multi": ["ABC","ABCD","ABC","ABC","ABC"],   "tf": ["错误","正确","错误","正确","正确"], "total": 100},
+  "xiongqiang":    {"single": "BBBBBBBADB", "multi": ["ABC","ABCD","ABCD","ABC","ABCD"], "tf": ["错误","正确","错误","正确","正确"], "total": 100},
+  "inline_bracket":{"single": "BA", "multi": ["ABD","ACD"], "tf": ["错误","正确"], "no_standard_check": true},
+  "inline_line":   {"single": "BB", "multi": ["ABC"],       "tf": ["错误","正确"], "no_standard_check": true}
+}
